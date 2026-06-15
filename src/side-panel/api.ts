@@ -36,6 +36,27 @@ function handleDemoMessage(message: WorkerRequest): DomainStatePayload {
     }
   }
 
+  if (message.type === "tab:jump") {
+    demoState = {
+      ...demoState,
+      groups: demoState.groups.map((group) => ({
+        ...group,
+        items: group.items.map((item) => {
+          if (item.kind !== "active") {
+            return item
+          }
+
+          const isActiveTab = item.tabId === message.tabId
+          return {
+            ...item,
+            active: isActiveTab,
+            lastAccessed: isActiveTab ? Date.now() : item.lastAccessed,
+          }
+        }),
+      })),
+    }
+  }
+
   return structuredClone(demoState)
 }
 

@@ -1,6 +1,6 @@
 # Storage Schema
 
-本文档定义 MVP 阶段写入 `chrome.storage.local` 的数据结构。当前只记录设计，不编写代码。
+本文档定义当前写入 `chrome.storage.local` 的数据结构。
 
 ## 原则
 
@@ -184,4 +184,3 @@ MVP 初始版本为 `version: 1`。
 1. 如果没有 root 对象，使用默认空状态。
 2. 如果 `version` 不是支持版本，进入 migration 流程。
 3. migration 失败时，不应破坏当前浏览器标签页；UI 应显示可恢复错误。
-

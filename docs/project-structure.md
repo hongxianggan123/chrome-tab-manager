@@ -1,6 +1,6 @@
 # 项目结构方案
 
-本文档定义进入实现阶段后的项目目录组织。当前只记录方案，不创建代码目录。
+本文档定义当前项目目录组织和模块边界。
 
 ## 目标
 
@@ -13,7 +13,7 @@
 - domain/storage/runtime 逻辑可测试。
 - MVP 范围内不引入多应用或 monorepo 复杂度。
 
-## 推荐目录
+## 当前目录
 
 ```text
 chrome-tab-manager/
@@ -22,6 +22,7 @@ chrome-tab-manager/
 ├── README.md
 ├── docs/
 │   ├── implementation-plan.md
+│   ├── mvp-completion.md
 │   ├── mvp-scope.md
 │   ├── permissions-plan.md
 │   ├── product-design.md
@@ -38,7 +39,6 @@ chrome-tab-manager/
 │   └── icons/
 ├── src/
 │   ├── extension/
-│   │   ├── manifest.ts
 │   │   └── service-worker.ts
 │   ├── side-panel/
 │   │   ├── main.tsx
@@ -66,17 +66,12 @@ chrome-tab-manager/
 │   │   └── ui/
 │   ├── lib/
 │   │   └── utils.ts
-│   └── test/
-│       └── fixtures/
 ├── components.json
 ├── package.json
 ├── tsconfig.json
 └── vite.config.ts
 ```
 
-说明：
-
-- 上述结构是实现阶段目标，不应在当前文档阶段提前创建。
 - `src/components/ui/` 由 shadcn/ui CLI 管理。
 - 产品自定义组件放在 `src/side-panel/components/`，不要混入 shadcn 原始组件目录。
 - 可测试纯逻辑放在 `src/domain/`、`src/storage/`、`src/worker/`。
@@ -87,7 +82,7 @@ chrome-tab-manager/
 
 Chrome extension 入口和 manifest 构建相关文件。
 
-建议职责：
+职责：
 
 - 生成或导出 MV3 manifest。
 - 指向 service worker 入口。
@@ -103,7 +98,7 @@ Chrome extension 入口和 manifest 构建相关文件。
 
 React side panel 应用。
 
-建议职责：
+职责：
 
 - 渲染 MVP UI。
 - 保存搜索词和当前状态过滤等会话 UI 状态。
@@ -120,7 +115,7 @@ React side panel 应用。
 
 项目自定义 UI 组件。
 
-建议组件：
+当前组件：
 
 - `PanelHeader`
 - `SearchBox`
@@ -130,7 +125,7 @@ React side panel 应用。
 - `GroupSection`
 - `GroupHeader`
 - `InventoryRow`
-- `EmptyStateView`
+- `StateViews`
 - `LoadingRows`
 
 这些组件可以组合 shadcn/ui 组件，但不应修改 shadcn 生成组件源码来满足业务需求。
@@ -149,7 +144,7 @@ shadcn/ui 组件目录。
 
 纯领域逻辑，不依赖 Chrome API，不依赖 React。
 
-建议职责：
+职责：
 
 - URL 规范化。
 - 特殊 URL 判断。
@@ -165,7 +160,7 @@ shadcn/ui 组件目录。
 
 `chrome.storage.local` 封装和 schema。
 
-建议职责：
+职责：
 
 - 定义 storage 类型。
 - 读写 storage root。
@@ -181,7 +176,7 @@ shadcn/ui 组件目录。
 
 service worker 的业务协调层。
 
-建议职责：
+职责：
 
 - 定义 side panel message 类型。
 - 读取 Chrome snapshot。
@@ -194,23 +189,12 @@ service worker 的业务协调层。
 
 通用工具。
 
-建议包含：
+当前包含：
 
 - `utils.ts`，用于 shadcn `cn()`。
 - 非领域、非 Chrome 特定的小工具。
 
 避免把业务规则塞到 `lib`，业务规则应放进 `domain`。
-
-### `src/test/fixtures/`
-
-测试夹具。
-
-建议包含：
-
-- tabs snapshot fixture。
-- archived records fixture。
-- duplicate group fixture。
-- special URL fixture。
 
 ## 文件命名
 
@@ -255,28 +239,26 @@ Vite 构建需要产出：
 - manifest JSON。
 - icons。
 
-具体 Vite 配置在实现阶段确定，但要保证：
+Vite 配置需要保证：
 
 - service worker 是 MV3 module worker。
 - side panel 和 service worker 可以共享 TypeScript domain/storage 代码。
 - shadcn CSS variables 进入 side panel 样式入口。
 
-## shadcn 初始化位置
+## shadcn 配置
 
-实现阶段在项目根目录运行 shadcn 初始化。
-
-期望结果：
+当前结果：
 
 - `components.json` 位于项目根目录。
 - UI 组件输出到 `src/components/ui/`。
 - `cn()` 位于 `src/lib/utils.ts`。
 - 全局 CSS 入口与 Vite/React side panel 样式一致。
 
-实际路径以 `shadcn info` 输出为准。不要在未检查项目配置前硬编码导入别名。
+实际路径以 `components.json` 和 `shadcn info` 输出为准。不要在未检查项目配置前硬编码导入别名。
 
 ## MVP 首批 shadcn 组件
 
-建议首批添加：
+当前已添加或保留的基础组件：
 
 - `button`
 - `badge`
@@ -285,17 +267,16 @@ Vite 构建需要产出：
 - `collapsible`
 - `toggle-group`
 - `input-group`
-- `tooltip`
 - `empty`
 - `skeleton`
 - `alert`
 - `sonner`
 
-如果某个组件在当前 shadcn registry 中名称不同，以 CLI search/docs 结果为准。
+`tooltip` 不再作为 MVP 主交互依赖；如果后续确实需要 tooltip，先确认使用场景不会影响窄侧边栏可用性。
 
 ## 测试结构
 
-建议后续测试目录：
+当前测试目录：
 
 ```text
 src/domain/*.test.ts
@@ -323,4 +304,3 @@ MVP 不做：
 - content script 目录。
 - options page 目录。
 - popup page 目录。
-

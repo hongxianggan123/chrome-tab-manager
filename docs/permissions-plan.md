@@ -1,6 +1,6 @@
 # Chrome 权限最小集
 
-本文档定义 MVP 阶段的 Chrome extension manifest 权限策略。当前只记录方案，不编写 manifest。
+本文档定义当前 Chrome extension manifest 权限策略。
 
 参考官方文档：
 
@@ -66,9 +66,9 @@
 
 - 侧边栏是 MVP 的主入口。
 
-## Manifest 结构建议
+## Manifest 结构
 
-MVP manifest 权限建议：
+当前 manifest 权限：
 
 ```json
 {
@@ -84,7 +84,7 @@ MVP manifest 权限建议：
 }
 ```
 
-实际文件名以后续构建产物为准。
+实际文件名以当前构建产物为准。
 
 ## MVP 不申请的权限
 
@@ -184,4 +184,3 @@ MVP 不管理隐身窗口。
 - 不记录完整浏览历史。
 - 不读取网页内容。
 - 不管理隐身窗口。
-

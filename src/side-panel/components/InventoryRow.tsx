@@ -10,18 +10,24 @@ import type { InventoryItem } from "@/domain/types"
 
 type InventoryRowProps = {
   item: InventoryItem
+  isCurrent: boolean
   onJump: (item: InventoryItem) => void
   onArchive: (tabId: number) => void
   onClose: (tabId: number) => void
   onDeleteArchive: (normalizedUrl: string) => void
+  onPreviewUrlChange: (url: string | null) => void
+  onInspectUrl: (url: string) => void
 }
 
 export function InventoryRow({
   item,
+  isCurrent,
   onJump,
   onArchive,
   onClose,
   onDeleteArchive,
+  onPreviewUrlChange,
+  onInspectUrl,
 }: InventoryRowProps) {
   const status = getStatus(item)
   const urlLabel = compactUrl(item.originalUrl)
@@ -32,8 +38,15 @@ export function InventoryRow({
       tabIndex={0}
       className="inventory-row"
       data-status={status}
+      data-current={isCurrent}
+      aria-current={isCurrent ? "page" : undefined}
+      onMouseEnter={() => onPreviewUrlChange(item.originalUrl)}
+      onFocus={() => onPreviewUrlChange(item.originalUrl)}
       onClick={() => onJump(item)}
       onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) {
+          return
+        }
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault()
           onJump(item)
@@ -65,7 +78,19 @@ export function InventoryRow({
             )}
           </div>
         </div>
-        <span className="row-url">{urlLabel}</span>
+        <button
+          type="button"
+          className="row-url"
+          onClick={(event) => {
+            event.stopPropagation()
+            onInspectUrl(item.originalUrl)
+          }}
+          onKeyDown={(event) => {
+            event.stopPropagation()
+          }}
+        >
+          {urlLabel}
+        </button>
         <div className="row-meta">
           <StatusBadges item={item} />
         </div>
@@ -88,6 +113,7 @@ function StatusBadges({ item }: { item: InventoryItem }) {
 
   return (
     <div className="badges">
+      {item.active ? <Badge variant="default">当前</Badge> : null}
       <Badge variant="outline">{item.windowLabel}</Badge>
       {item.duplicateCount > 1 ? (
         <Badge variant="secondary">重复 x{item.duplicateCount}</Badge>

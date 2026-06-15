@@ -1,6 +1,6 @@
 # shadcn/ui 组件计划
 
-本文档记录后续实现 MVP UI 时的 shadcn/ui 组件使用计划。当前阶段只记录方案，不运行 `shadcn init`，不添加组件源码。
+本文档记录当前项目使用 shadcn/ui 的组件约束和后续新增组件规则。
 
 ## 使用原则
 
@@ -24,9 +24,9 @@
 | 状态过滤 | `ToggleGroup`, `ToggleGroupItem` | `全部 / 打开 / 归档 / 重复` 单选过滤。 |
 | 分组展开 | `Collapsible` | 分组标题控制展开/折叠。 |
 | 分隔线 | `Separator` | 分隔顶部控制区、分组和行。 |
-| 状态徽标 | `Badge` | `Duplicate x2`、`Archived`、`Special URL`。 |
-| 操作按钮 | `Button` | 跳转、归档、关闭、打开归档项、删除归档记录。 |
-| 完整 URL 提示 | `Tooltip` 或 `HoverCard` | MVP 优先 `Tooltip`，内容较长时再用 `HoverCard`。 |
+| 状态徽标 | `Badge` | `当前`、`重复 x2`、`已归档`、`特殊 URL`。 |
+| 操作按钮 | `Button` | 归档、关闭、删除归档记录。跳转和恢复使用行点击作为主操作。 |
+| 完整 URL 查看 | 自定义 `UrlInspector` | 底部固定 inspector，替代 tooltip 或 hover card。 |
 | 空状态 | `Empty` | 没有标签、搜索无结果、没有归档项。 |
 | 加载状态 | `Skeleton` | 首次读取标签清单时的行骨架。 |
 | 错误提示 | `Alert` | API 读取失败、特殊 URL 不可归档等明确提示。 |
@@ -39,6 +39,7 @@
 - MVP 不使用 `Dialog`、`AlertDialog`。关闭和归档不做二次确认。
 - MVP 不使用 `Sheet`。Chrome Side Panel 本身已经是侧边栏容器。
 - MVP 不使用 `DropdownMenu`。每行操作数量少，直接展示更可发现。
+- MVP 不使用 `Tooltip` 承载完整 URL 或按钮说明。完整 URL 使用底部 inspector，按钮使用 `aria-label`。
 
 ## 自定义部分
 
@@ -48,14 +49,16 @@
 - `GroupHeader`：包含分组标题、数量摘要、折叠状态。
 - 状态轨道：3px 左侧轨道，用 CSS 变量表达打开、归档、重复、特殊 URL 状态。
 - 窗口标识：例如 `W1`、`W2` 的紧凑元信息。
+- 当前页高亮：当前行背景、加粗状态轨道、`当前` 徽标和组标题提示。
+- URL inspector：固定在底部的完整 URL 查看区。
 
-自定义部分仍应使用 shadcn 组件拼装动作、徽标、提示和状态，不手写已有组件能覆盖的交互。
+自定义部分仍应使用 shadcn 组件拼装动作、徽标和状态，不手写已有组件能覆盖的交互。
 
 ## 主题 token
 
 UI 原型中的颜色需要映射为主题 CSS 变量，而不是直接写 Tailwind 原始颜色。
 
-建议在实现阶段建立这些语义 token：
+当前已建立或可继续沿用这些语义 token：
 
 - `--tab-panel`
 - `--tab-rail-active`
@@ -68,31 +71,24 @@ UI 原型中的颜色需要映射为主题 CSS 变量，而不是直接写 Tailw
 
 ## 图标计划
 
-实现阶段根据 shadcn 项目配置中的 `iconLibrary` 决定图标来源，不提前假设一定是 lucide。
+当前项目使用 lucide 图标。后续新增图标优先从 lucide 中选择。
 
 需要的图标语义：
 
 - 搜索
 - 清空搜索
 - 展开/折叠
-- 跳转
 - 归档
 - 关闭
-- 打开归档项
 - 删除归档记录
 - 错误
 - 空状态
 
 按钮内图标必须使用 `data-icon`，不要在图标上手写尺寸类。
 
-## 实现前流程
+## 新增组件流程
 
-进入代码阶段后：
-
-1. 创建 Vite + React + TypeScript 项目。
-2. 初始化 shadcn/ui。
-3. 运行 `shadcn info` 获取实际项目配置。
-4. 按需添加 MVP 组件，不一次性添加全部组件库。
-5. 添加组件前查看对应组件文档。
-6. 添加后读取生成文件，确认导入路径、图标库、组合方式符合项目配置。
-
+1. 运行 `shadcn info` 或查看 `components.json` 获取实际项目配置。
+2. 按需添加组件，不一次性添加全部组件库。
+3. 添加组件前查看对应组件文档。
+4. 添加后读取生成文件，确认导入路径、图标库、组合方式符合项目配置。

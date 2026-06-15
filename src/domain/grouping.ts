@@ -69,12 +69,6 @@ function sortGroupItems(items: InventoryItem[]): InventoryItem[] {
     }
 
     if (a.kind === "active" && b.kind === "active") {
-      const aTime = a.lastAccessed ?? 0
-      const bTime = b.lastAccessed ?? 0
-      if (aTime !== bTime) {
-        return bTime - aTime
-      }
-
       if (a.windowId !== b.windowId) {
         return a.windowId - b.windowId
       }
@@ -85,4 +79,3 @@ function sortGroupItems(items: InventoryItem[]): InventoryItem[] {
     return 0
   })
 }
-

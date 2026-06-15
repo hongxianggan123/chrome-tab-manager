@@ -4,7 +4,19 @@
 
 ## 当前阶段
 
-MVP 实现阶段已启动。当前已有 Vite + React + TypeScript + shadcn/ui + MV3 的最小扩展骨架，`dist/` 可作为 unpacked extension 加载。
+MVP 版本已完成并进入下一阶段准备。当前已有 Vite + React + TypeScript + shadcn/ui + MV3 扩展实现，`dist/` 可作为 unpacked extension 加载。
+
+MVP 已覆盖：
+
+- 侧边栏展示所有普通窗口中的打开标签页，并排除隐身窗口。
+- 按完整 host 分组，展示数量摘要、折叠状态和当前标签页高亮。
+- 识别规范化 URL 相同的重复标签页。
+- 支持跳转、关闭、单个归档、恢复归档、删除归档记录。
+- 支持搜索和全部、打开、归档、重复过滤。
+- 使用 `chrome.storage.local` 保存归档记录和分组折叠状态。
+- 提供 loading、empty、error 和非阻塞操作错误反馈。
+
+下一阶段从 MVP 后置 Backlog 开始，优先处理自定义分组、侧边栏置顶、重复新开页处理和休眠自动归档等能力。
 
 ## 常用命令
 
@@ -34,6 +46,6 @@ npm run build
 - [隐私与商店说明草案](./docs/privacy-and-store-copy.md)
 - [MVP 工作拆分](./docs/mvp-work-breakdown.md)
 - [实施计划](./docs/implementation-plan.md)
-- [实现阶段启动清单](./docs/implementation-readiness.md)
 - [测试计划](./docs/test-plan.md)
+- [MVP 完成检查](./docs/mvp-completion.md)
 - [ADRs](./docs/adr/)

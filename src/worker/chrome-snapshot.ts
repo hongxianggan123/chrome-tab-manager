@@ -11,7 +11,12 @@ export async function readChromeSnapshot(): Promise<ChromeSnapshot> {
     windowTypes: ["normal"],
   })
 
-  const normalWindows = windows.filter((window) => !window.incognito)
+  const normalWindows = windows
+    .filter((window) => !window.incognito)
+    .sort(
+      (a, b) =>
+        (a.id ?? Number.MAX_SAFE_INTEGER) - (b.id ?? Number.MAX_SAFE_INTEGER)
+    )
   const labels = new Map<number, string>()
 
   normalWindows.forEach((window, index) => {
@@ -54,4 +59,3 @@ export async function readChromeSnapshot(): Promise<ChromeSnapshot> {
     capturedAt: new Date().toISOString(),
   }
 }
-

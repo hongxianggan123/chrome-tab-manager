@@ -1,6 +1,6 @@
 # 构建与开发工具方案
 
-本文档定义进入实现阶段后的构建、脚本和本地验证方案。当前只记录方案，不创建 `package.json` 或配置文件。
+本文档定义当前项目的构建、脚本和本地验证方案。
 
 ## 目标
 
@@ -16,15 +16,7 @@
 
 ## Package Manager
 
-实现阶段先检查用户环境和项目初始化工具，再确定 package manager。
-
-推荐顺序：
-
-1. 如果用户指定 package manager，按用户指定。
-2. 如果项目初始化工具默认生成 npm 配置，则先使用 npm，减少额外前置依赖。
-3. 如果用户希望更快安装和锁定依赖，再切换 pnpm。
-
-确定后，所有 shadcn CLI 命令必须使用同一个 package runner。
+当前使用 npm 和 `package-lock.json`。后续 shadcn CLI、测试和构建命令默认使用 npm。
 
 ## 构建产物
 
@@ -35,13 +27,13 @@ dist/
 ├── manifest.json
 ├── side-panel.html
 ├── assets/
-│   ├── side-panel-*.js
-│   ├── side-panel-*.css
-│   └── service-worker-*.js
-└── icons/
+│   ├── side-panel.js
+│   ├── side-panel.css
+│   └── normalize-url.js
+└── service-worker.js
 ```
 
-实际文件名可以由 Vite hash 决定，但 manifest 必须引用正确的 service worker 和 side panel 入口。
+实际文件名以当前 Vite 配置输出为准，manifest 必须引用正确的 service worker 和 side panel 入口。
 
 ## Entry Points
 
@@ -98,31 +90,28 @@ MVP 不添加：
 
 ## Scripts
 
-实现阶段建议脚本：
+当前脚本：
 
 ```json
 {
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "lint": "eslint .",
-    "format": "prettier --write ."
+    "test:watch": "vitest"
   }
 }
 ```
 
 说明：
 
-- 如果初始阶段不引入 ESLint/Prettier，可以先保留 `typecheck`、`test`、`build`。
 - `build` 必须先跑类型检查，再生成 extension 产物。
 - Chrome 加载 unpacked extension 使用 `dist/`。
 
 ## TypeScript
 
-建议：
+当前约束：
 
 - 开启 `strict`。
 - Chrome API 类型使用官方类型包或浏览器扩展类型包，具体实现阶段根据工具链选择。
@@ -135,10 +124,10 @@ MVP 不添加：
 
 ## Testing
 
-测试工具建议：
+测试工具：
 
 - `vitest`：单元测试 domain/storage/worker 纯逻辑。
-- 不在 MVP 初始阶段引入浏览器 E2E，先用 [测试计划](./test-plan.md) 手动验证 Chrome 行为。
+- 不把浏览器 E2E 测试写入仓库。UI 行为可用本地 Playwright CLI 临时验证，真实扩展行为仍按 [测试计划](./test-plan.md) 手动验证。
 
 第一批自动化测试：
 
@@ -152,18 +141,11 @@ MVP 不添加：
 
 ## shadcn/ui
 
-进入实现阶段后：
-
-1. 初始化 React/Vite 项目。
-2. 初始化 shadcn/ui。
-3. 运行 `shadcn info` 确认 alias、icon library、组件路径、Tailwind 版本。
-4. 按 [shadcn/ui 组件计划](./shadcn-component-plan.md) 添加 MVP 首批组件。
-
-不要在未初始化项目时运行 shadcn CLI。
+shadcn/ui 已初始化。新增组件前运行 `shadcn info` 或查看 `components.json`，确认 alias、icon library、组件路径和 Tailwind 版本。
 
 ## Tailwind 与主题
 
-实现阶段应把 UI 原型里的状态颜色映射为 CSS 变量，而不是直接散落 raw color。
+状态颜色映射为 CSS 变量，避免散落 raw color。
 
 建议：
 
@@ -173,7 +155,7 @@ MVP 不添加：
 
 ## Local Verification
 
-阶段 0 最小验证：
+真实扩展本地验证：
 
 1. 运行 build。
 2. 打开 Chrome `chrome://extensions`。
@@ -181,8 +163,10 @@ MVP 不添加：
 4. Load unpacked。
 5. 选择 `dist/`。
 6. 打开扩展 side panel。
-7. 确认 service worker active。
-8. 确认 manifest 权限只有 MVP 权限。
+7. 修改后点击扩展卡片上的 reload。
+8. 打开 side panel。
+9. 确认 service worker active。
+10. 确认 manifest 权限只有当前功能需要的权限。
 
 ## Development Loop
 
@@ -199,7 +183,7 @@ MVP 不添加：
 
 ## 不做
 
-MVP 初始工具链不做：
+当前工具链不做：
 
 - 自动发布流程。
 - Chrome Web Store 打包。
@@ -207,4 +191,3 @@ MVP 初始工具链不做：
 - 多浏览器构建。
 - content script 热更新。
 - 复杂 monorepo 构建。
-

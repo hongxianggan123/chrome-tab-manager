@@ -116,6 +116,38 @@ describe("grouping", () => {
       "github.com",
     ])
   })
+
+  it("keeps active tab ordering stable when last accessed changes", () => {
+    const instances = toTabInstances([
+      {
+        tabId: 1,
+        windowId: 10,
+        windowLabel: "W1",
+        originalUrl: "https://example.com/a",
+        title: "Older access first tab",
+        active: false,
+        index: 0,
+        lastAccessed: 100,
+      },
+      {
+        tabId: 2,
+        windowId: 10,
+        windowLabel: "W1",
+        originalUrl: "https://example.com/b",
+        title: "Recent access second tab",
+        active: true,
+        index: 1,
+        lastAccessed: 900,
+      },
+    ])
+
+    const groups = buildGroups(mergeInventory(instances, []))
+
+    expect(groups[0].items.map((item) => item.title)).toEqual([
+      "Older access first tab",
+      "Recent access second tab",
+    ])
+  })
 })
 
 describe("filterGroups", () => {
@@ -144,4 +176,3 @@ describe("filterGroups", () => {
     expect(result.emptyReason).toBe("no-archived-tabs")
   })
 })
-

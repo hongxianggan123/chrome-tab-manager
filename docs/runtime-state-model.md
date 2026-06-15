@@ -113,6 +113,7 @@ type TabInstanceSnapshot = {
   title: string
   faviconUrl?: string
   active: boolean
+  index: number
   lastAccessed?: number
   pinned: boolean
   audible: boolean
@@ -130,6 +131,7 @@ MVP 使用字段：
 - `title`
 - `faviconUrl`
 - `active`
+- `index`
 
 其他字段可以保留为后续阶段扩展，但 MVP UI 不依赖它们。
 
@@ -148,6 +150,8 @@ type TabInstance = {
   faviconUrl?: string
   isSpecialUrl: boolean
   duplicateCount: number
+  active: boolean
+  index: number
 }
 ```
 
@@ -236,7 +240,7 @@ type InventoryItem = TabInstance | ArchivedInventoryItem
 排序：
 
 1. 打开项在归档项前。
-2. 打开项按最近激活时间倒序；MVP 如无法可靠获得最近激活时间，可先按 Chrome 当前 tab 顺序或捕获顺序。
+2. 打开项按稳定窗口 id、tab index 排序，不按最近激活时间排序，避免用户点击后列表跳变。
 3. 归档项按 `archivedAt` 倒序。
 
 ## View State
@@ -486,4 +490,3 @@ type FeedbackMessage = {
 1. `lastAccessed` 在目标 Chrome 版本中是否可用且可靠。
 2. Side panel 打开状态下，tabs/window 事件是否足以实时刷新，是否还需要手动刷新按钮。
 3. 特殊 URL 的 favicon 和 title 是否稳定可读。
-
