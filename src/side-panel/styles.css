@@ -257,7 +257,7 @@ input {
 .group-header {
   display: grid;
   width: 100%;
-  grid-template-columns: 16px minmax(0, 1fr);
+  grid-template-columns: 14px 20px minmax(0, 1fr);
   gap: 2px 6px;
   border: 0;
   background: transparent;
@@ -266,10 +266,54 @@ input {
   text-align: left;
 }
 
-.group-header svg {
+.group-disclosure {
+  display: flex;
   grid-row: 1 / span 2;
-  margin-top: 1px;
+  width: 14px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  align-self: start;
+  color: color-mix(in srgb, var(--muted-foreground), transparent 18%);
+}
+
+.group-disclosure svg {
+  width: 12px;
+  height: 12px;
+  transition:
+    color 120ms ease,
+    transform 140ms ease;
+}
+
+.group-header[data-state="open"] .group-disclosure svg {
+  transform: rotate(90deg);
+}
+
+.group-header:hover .group-disclosure {
+  color: var(--foreground);
+}
+
+.group-favicon {
+  display: flex;
+  grid-row: 1 / span 2;
+  width: 20px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  align-self: start;
+  margin-top: -1px;
   color: var(--muted-foreground);
+}
+
+.group-favicon img {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+}
+
+.group-favicon svg {
+  width: 15px;
+  height: 15px;
 }
 
 .group-title {
@@ -299,14 +343,26 @@ input {
 .inventory-row {
   position: relative;
   display: grid;
-  grid-template-columns: 3px 24px minmax(0, 1fr);
+  width: 100%;
+  grid-template-columns: 3px minmax(0, 1fr);
   gap: 8px;
   min-height: 64px;
+  border: 0;
   padding: 8px 10px 8px 12px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
 }
 
-.inventory-row:hover {
+.inventory-row:hover,
+.inventory-row:focus-visible {
   background: color-mix(in srgb, var(--accent), transparent 45%);
+}
+
+.inventory-row:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
 }
 
 .status-rail {
@@ -344,25 +400,6 @@ input {
   );
 }
 
-.favicon {
-  display: flex;
-  width: 24px;
-  height: 24px;
-  align-items: center;
-  justify-content: center;
-  color: var(--muted-foreground);
-}
-
-.favicon img {
-  width: 16px;
-  height: 16px;
-}
-
-.favicon svg {
-  width: 16px;
-  height: 16px;
-}
-
 .row-main {
   display: flex;
   min-width: 0;
@@ -386,14 +423,6 @@ input {
   line-height: 18px;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.window-label {
-  flex-shrink: 0;
-  color: var(--muted-foreground);
-  font-family: "JetBrains Mono", "SF Mono", ui-monospace, monospace;
-  font-size: 10px;
-  line-height: 12px;
 }
 
 .row-url {
@@ -423,6 +452,43 @@ input {
   flex-shrink: 0;
   gap: 2px;
   margin-left: auto;
+}
+
+.row-actions button {
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    box-shadow 120ms ease,
+    color 120ms ease,
+    transform 120ms ease;
+}
+
+.row-actions button:hover {
+  background: color-mix(in srgb, var(--primary), transparent 88%);
+  color: var(--primary);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--primary), transparent 58%),
+    0 3px 8px color-mix(in srgb, var(--primary), transparent 82%);
+  transform: translateY(-1px) scale(1.06);
+}
+
+.row-actions button:active {
+  box-shadow: none;
+  transform: translateY(0) scale(0.98);
+}
+
+.row-actions button:focus-visible {
+  box-shadow:
+    0 0 0 1px var(--ring),
+    0 0 0 3px color-mix(in srgb, var(--ring), transparent 78%);
+}
+
+.row-actions button[data-variant="destructive"]:hover {
+  background: color-mix(in srgb, var(--destructive), transparent 82%);
+  color: var(--destructive);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--destructive), transparent 48%),
+    0 3px 8px color-mix(in srgb, var(--destructive), transparent 78%);
 }
 
 .loading-rows {

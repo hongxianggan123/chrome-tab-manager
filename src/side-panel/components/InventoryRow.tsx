@@ -1,17 +1,10 @@
 import {
   ArchiveIcon,
-  ExternalLinkIcon,
-  FileIcon,
   Trash2Icon,
   XIcon,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 import { compactUrl } from "@/domain/normalize-url"
 import type { InventoryItem } from "@/domain/types"
 
@@ -34,29 +27,24 @@ export function InventoryRow({
   const urlLabel = compactUrl(item.originalUrl)
 
   return (
-    <div className="inventory-row" data-status={status}>
+    <div
+      role="button"
+      tabIndex={0}
+      className="inventory-row"
+      data-status={status}
+      onClick={() => onJump(item)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault()
+          onJump(item)
+        }
+      }}
+    >
       <div className="status-rail" aria-hidden="true" />
-      <div className="favicon" aria-hidden="true">
-        {item.faviconUrl ? <img src={item.faviconUrl} alt="" /> : <FileIcon />}
-      </div>
       <div className="row-main">
         <div className="row-title-line">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="row-title">{item.title}</span>
-            </TooltipTrigger>
-            <TooltipContent>{item.title}</TooltipContent>
-          </Tooltip>
-          {item.kind === "active" ? (
-            <span className="window-label">{item.windowLabel}</span>
-          ) : null}
+          <span className="row-title">{item.title}</span>
           <div className="row-actions">
-            <IconButton
-              label={item.kind === "active" ? "跳转到标签页" : "打开归档项"}
-              onClick={() => onJump(item)}
-            >
-              <ExternalLinkIcon data-icon="inline-start" />
-            </IconButton>
             {item.kind === "active" && !item.isSpecialUrl ? (
               <IconButton label="归档标签页" onClick={() => onArchive(item.tabId)}>
                 <ArchiveIcon data-icon="inline-start" />
@@ -77,12 +65,7 @@ export function InventoryRow({
             )}
           </div>
         </div>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span className="row-url">{urlLabel}</span>
-          </TooltipTrigger>
-          <TooltipContent>{item.originalUrl}</TooltipContent>
-        </Tooltip>
+        <span className="row-url">{urlLabel}</span>
         <div className="row-meta">
           <StatusBadges item={item} />
         </div>
@@ -105,6 +88,7 @@ function StatusBadges({ item }: { item: InventoryItem }) {
 
   return (
     <div className="badges">
+      <Badge variant="outline">{item.windowLabel}</Badge>
       {item.duplicateCount > 1 ? (
         <Badge variant="secondary">重复 x{item.duplicateCount}</Badge>
       ) : null}
@@ -125,19 +109,17 @@ function IconButton({
   onClick: () => void
 }) {
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          aria-label={label}
-          size="icon-xs"
-          variant={destructive ? "destructive" : "ghost"}
-          onClick={onClick}
-        >
-          {children}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
-    </Tooltip>
+    <Button
+      aria-label={label}
+      size="icon-xs"
+      variant={destructive ? "destructive" : "ghost"}
+      onClick={(event) => {
+        event.stopPropagation()
+        onClick()
+      }}
+    >
+      {children}
+    </Button>
   )
 }
 

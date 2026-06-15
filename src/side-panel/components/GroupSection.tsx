@@ -1,4 +1,4 @@
-import { ChevronDownIcon, ChevronRightIcon } from "lucide-react"
+import { ChevronRightIcon, GlobeIcon } from "lucide-react"
 import {
   Collapsible,
   CollapsibleContent,
@@ -24,6 +24,8 @@ export function GroupSection({
   onClose,
   onDeleteArchive,
 }: GroupSectionProps) {
+  const faviconUrl = group.items.find((item) => item.faviconUrl)?.faviconUrl
+
   return (
     <Collapsible
       open={group.expanded}
@@ -31,11 +33,12 @@ export function GroupSection({
     >
       <section className="group-section">
         <CollapsibleTrigger className="group-header">
-          {group.expanded ? (
-            <ChevronDownIcon aria-hidden="true" />
-          ) : (
-            <ChevronRightIcon aria-hidden="true" />
-          )}
+          <span className="group-disclosure" aria-hidden="true">
+            <ChevronRightIcon />
+          </span>
+          <span className="group-favicon" aria-hidden="true">
+            {faviconUrl ? <img src={faviconUrl} alt="" /> : <GlobeIcon />}
+          </span>
           <span className="group-title">{group.label}</span>
           <span className="group-counts">
             {group.counts.total} 项 · 打开 {group.counts.active} · 归档{" "}
@@ -60,4 +63,3 @@ export function GroupSection({
     </Collapsible>
   )
 }
-

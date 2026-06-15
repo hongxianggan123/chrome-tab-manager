@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
-import { TooltipProvider } from "@/components/ui/tooltip"
 import { filterGroups } from "@/domain/filters"
 import type { InventoryItem, StatusFilter } from "@/domain/types"
 import type {
@@ -100,65 +99,61 @@ export function App() {
   )
 
   return (
-    <TooltipProvider>
-      <main className="side-panel-shell" aria-busy={isPending}>
-        <div className="panel-top">
-          <PanelHeader counts={state?.counts} />
-          <SearchBox value={query} onChange={setQuery} />
-          <StatusFilterControl
-            value={statusFilter}
-            counts={
-              viewState?.totalCounts ?? {
-                total: 0,
-                active: 0,
-                archived: 0,
-                duplicate: 0,
-              }
+    <main className="side-panel-shell" aria-busy={isPending}>
+      <div className="panel-top">
+        <PanelHeader counts={state?.counts} />
+        <SearchBox value={query} onChange={setQuery} />
+        <StatusFilterControl
+          value={statusFilter}
+          counts={
+            viewState?.totalCounts ?? {
+              total: 0,
+              active: 0,
+              archived: 0,
+              duplicate: 0,
             }
-            onChange={setStatusFilter}
+          }
+          onChange={setStatusFilter}
+        />
+      </div>
+
+      <div className="feedback-region">
+        {feedback ? <InlineFeedback message={feedback} /> : null}
+      </div>
+
+      <section className="group-list" aria-label="标签清单">
+        {error ? <ErrorView message={error} /> : null}
+        {!state && !error ? <LoadingRows /> : null}
+        {viewState?.emptyReason ? <EmptyState reason={viewState.emptyReason} /> : null}
+        {viewState?.visibleGroups.map((group) => (
+          <GroupSection
+            key={group.key}
+            group={group}
+            onCollapsedChange={(groupKey, collapsed) => {
+              if (query.trim() || statusFilter !== "all") {
+                return
+              }
+
+              void runCommand({
+                type: "group:setCollapsed",
+                groupKey,
+                collapsed,
+              })
+            }}
+            onJump={handleJump}
+            onArchive={(tabId) => {
+              void runCommand({ type: "tab:archive", tabId })
+            }}
+            onClose={(tabId) => {
+              void runCommand({ type: "tab:close", tabId })
+            }}
+            onDeleteArchive={(normalizedUrl) => {
+              void runCommand({ type: "archive:delete", normalizedUrl })
+            }}
           />
-        </div>
-
-        <div className="feedback-region">
-          {feedback ? <InlineFeedback message={feedback} /> : null}
-        </div>
-
-        <section className="group-list" aria-label="标签清单">
-          {error ? <ErrorView message={error} /> : null}
-          {!state && !error ? <LoadingRows /> : null}
-          {viewState?.emptyReason ? (
-            <EmptyState reason={viewState.emptyReason} />
-          ) : null}
-          {viewState?.visibleGroups.map((group) => (
-            <GroupSection
-              key={group.key}
-              group={group}
-              onCollapsedChange={(groupKey, collapsed) => {
-                if (query.trim() || statusFilter !== "all") {
-                  return
-                }
-
-                void runCommand({
-                  type: "group:setCollapsed",
-                  groupKey,
-                  collapsed,
-                })
-              }}
-              onJump={handleJump}
-              onArchive={(tabId) => {
-                void runCommand({ type: "tab:archive", tabId })
-              }}
-              onClose={(tabId) => {
-                void runCommand({ type: "tab:close", tabId })
-              }}
-              onDeleteArchive={(normalizedUrl) => {
-                void runCommand({ type: "archive:delete", normalizedUrl })
-              }}
-            />
-          ))}
-        </section>
-      </main>
-    </TooltipProvider>
+        ))}
+      </section>
+    </main>
   )
 }
 
