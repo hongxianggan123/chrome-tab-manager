@@ -1,0 +1,147 @@
+import { describe, expect, it } from "vitest"
+import { filterGroups } from "./filters"
+import { buildGroups } from "./grouping"
+import { mergeInventory, toTabInstances } from "./inventory"
+import { normalizeUrl } from "./normalize-url"
+import { isSpecialUrl, specialUrlGroupLabel } from "./special-url"
+import type { ArchivedTabRecord, TabInstanceSnapshot } from "./types"
+
+const snapshots: TabInstanceSnapshot[] = [
+  {
+    tabId: 1,
+    windowId: 10,
+    windowLabel: "W1",
+    originalUrl: "https://docs.google.com/document/d/1?tab=t#heading",
+    title: "Quarterly roadmap",
+    active: false,
+    index: 0,
+    lastAccessed: 100,
+  },
+  {
+    tabId: 2,
+    windowId: 11,
+    windowLabel: "W2",
+    originalUrl: "https://docs.google.com/document/d/1?tab=t#comments",
+    title: "Quarterly roadmap",
+    active: true,
+    index: 0,
+    lastAccessed: 200,
+  },
+  {
+    tabId: 3,
+    windowId: 10,
+    windowLabel: "W1",
+    originalUrl: "https://github.com/org/repo/pull/48",
+    title: "Pull request #48",
+    active: false,
+    index: 1,
+    lastAccessed: 150,
+  },
+]
+
+function archivedRecord(overrides: Partial<ArchivedTabRecord> = {}) {
+  return {
+    normalizedUrl: "https://example.com/archive",
+    originalUrl: "https://example.com/archive#last",
+    title: "Archived API notes",
+    hostname: "example.com",
+    archivedAt: "2026-06-15T00:00:00.000Z",
+    archiveCount: 1,
+    ...overrides,
+  } satisfies ArchivedTabRecord
+}
+
+describe("normalizeUrl", () => {
+  it("ignores fragments and keeps query strings", () => {
+    expect(normalizeUrl("https://example.com/a?x=1#one")).toBe(
+      "https://example.com/a?x=1"
+    )
+    expect(normalizeUrl("https://example.com/a?x=2#one")).toBe(
+      "https://example.com/a?x=2"
+    )
+  })
+})
+
+describe("special URL detection", () => {
+  it("marks browser and file URLs as special", () => {
+    expect(isSpecialUrl("chrome://extensions")).toBe(true)
+    expect(isSpecialUrl("file:///Users/emily/a.txt")).toBe(true)
+    expect(isSpecialUrl("https://example.com")).toBe(false)
+  })
+
+  it("creates stable special URL group labels", () => {
+    expect(specialUrlGroupLabel("chrome://extensions")).toBe("chrome")
+    expect(specialUrlGroupLabel("file:///Users/emily/a.txt")).toBe("file")
+  })
+})
+
+describe("inventory", () => {
+  it("applies duplicate counts to active tab instances", () => {
+    const instances = toTabInstances(snapshots)
+
+    expect(instances[0].duplicateCount).toBe(2)
+    expect(instances[1].duplicateCount).toBe(2)
+    expect(instances[2].duplicateCount).toBe(1)
+  })
+
+  it("does not show archived records when active instances share the URL", () => {
+    const instances = toTabInstances(snapshots)
+    const inventory = mergeInventory(instances, [
+      archivedRecord({
+        normalizedUrl: instances[0].normalizedUrl,
+        hostname: instances[0].hostname,
+      }),
+      archivedRecord(),
+    ])
+
+    expect(inventory).toHaveLength(4)
+    expect(inventory.filter((item) => item.kind === "archived")).toHaveLength(1)
+  })
+})
+
+describe("grouping", () => {
+  it("sorts groups by item count then hostname", () => {
+    const instances = toTabInstances(snapshots)
+    const inventory = mergeInventory(instances, [
+      archivedRecord({
+        normalizedUrl: "https://github.com/archived",
+        hostname: "github.com",
+        archivedAt: "2026-06-16T00:00:00.000Z",
+      }),
+    ])
+    const groups = buildGroups(inventory)
+
+    expect(groups.map((group) => group.label)).toEqual([
+      "docs.google.com",
+      "github.com",
+    ])
+  })
+})
+
+describe("filterGroups", () => {
+  it("filters duplicate active tabs", () => {
+    const groups = buildGroups(mergeInventory(toTabInstances(snapshots), []))
+    const result = filterGroups(groups, "", "duplicate")
+
+    expect(result.totalCounts.duplicate).toBe(2)
+    expect(result.visibleGroups).toHaveLength(1)
+    expect(result.visibleGroups[0].items).toHaveLength(2)
+  })
+
+  it("searches active and archived items", () => {
+    const groups = buildGroups(
+      mergeInventory(toTabInstances(snapshots), [archivedRecord()])
+    )
+
+    expect(filterGroups(groups, "api", "all").visibleGroups).toHaveLength(1)
+    expect(filterGroups(groups, "pull", "all").visibleGroups).toHaveLength(1)
+  })
+
+  it("returns no archived empty state for archived filter without archived items", () => {
+    const groups = buildGroups(mergeInventory(toTabInstances(snapshots), []))
+    const result = filterGroups(groups, "", "archived")
+
+    expect(result.emptyReason).toBe("no-archived-tabs")
+  })
+})
+

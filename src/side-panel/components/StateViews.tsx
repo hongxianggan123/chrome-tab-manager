@@ -1,0 +1,88 @@
+import { AlertCircleIcon, FolderOpenIcon } from "lucide-react"
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert"
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty"
+import { Skeleton } from "@/components/ui/skeleton"
+import type { EmptyReason } from "@/domain/types"
+
+export function LoadingRows() {
+  return (
+    <div className="loading-rows" aria-label="正在读取当前标签页">
+      {Array.from({ length: 6 }, (_, index) => (
+        <div className="loading-row" key={index}>
+          <Skeleton className="size-8 rounded-lg" />
+          <div className="loading-row-lines">
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-3 w-1/2" />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+export function ErrorView({ message }: { message: string }) {
+  return (
+    <Alert variant="destructive" className="feedback-alert">
+      <AlertCircleIcon />
+      <AlertTitle>无法读取标签页</AlertTitle>
+      <AlertDescription>{message}</AlertDescription>
+    </Alert>
+  )
+}
+
+export function InlineFeedback({ message }: { message: string }) {
+  return (
+    <Alert className="feedback-alert">
+      <AlertCircleIcon />
+      <AlertTitle>操作未完成</AlertTitle>
+      <AlertDescription>{message}</AlertDescription>
+    </Alert>
+  )
+}
+
+export function EmptyState({ reason }: { reason: EmptyReason }) {
+  const copy = getEmptyCopy(reason)
+
+  return (
+    <Empty className="empty-state">
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <FolderOpenIcon />
+        </EmptyMedia>
+        <EmptyTitle>{copy.title}</EmptyTitle>
+        <EmptyDescription>{copy.description}</EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  )
+}
+
+function getEmptyCopy(reason: EmptyReason) {
+  switch (reason) {
+    case "no-normal-tabs":
+      return {
+        title: "没有可管理的普通窗口标签页",
+        description: "打开一个普通 Chrome 窗口后，标签页会显示在这里。",
+      }
+    case "no-archived-tabs":
+      return {
+        title: "还没有归档项",
+        description: "归档一个普通网页后，它会出现在这里。",
+      }
+    case "no-search-results":
+      return {
+        title: "没有匹配的标签页",
+        description: "试试搜索域名、标题里的关键词，或清空当前过滤。",
+      }
+  }
+}
+
