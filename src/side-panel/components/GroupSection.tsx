@@ -5,6 +5,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
 import type { InventoryItem, VisibleGroup } from "@/domain/types"
+import { cn } from "@/lib/utils"
 import { InventoryRow } from "./InventoryRow"
 
 type GroupSectionProps = {
@@ -40,23 +41,48 @@ export function GroupSection({
       open={group.expanded}
       onOpenChange={(open) => onCollapsedChange(group.key, !open)}
     >
-      <section className="group-section" data-current-group={hasCurrentItem}>
-        <CollapsibleTrigger className="group-header">
-          <span className="group-disclosure" aria-hidden="true">
-            <ChevronRightIcon />
+      <section
+        className="border-b border-[color-mix(in_srgb,var(--border),transparent_35%)]"
+        data-current-group={hasCurrentItem}
+      >
+        <CollapsibleTrigger
+          className={cn(
+            "grid w-full grid-cols-[14px_20px_minmax(0,1fr)_auto] gap-x-1.5 gap-y-0.5 border-0 bg-transparent px-3 py-[9px] text-left text-inherit hover:[&_[data-slot=disclosure]]:text-foreground data-[state=open]:[&_[data-slot=chevron]]:rotate-90",
+            hasCurrentItem &&
+              "bg-[color-mix(in_srgb,var(--primary),transparent_94%)]"
+          )}
+        >
+          <span
+            data-slot="disclosure"
+            className="row-span-2 flex h-5 w-3.5 items-center justify-center self-start text-[color-mix(in_srgb,var(--muted-foreground),transparent_18%)]"
+            aria-hidden="true"
+          >
+            <ChevronRightIcon
+              data-slot="chevron"
+              className="size-3 transition-[color,transform] duration-150"
+            />
           </span>
-          <span className="group-favicon" aria-hidden="true">
+          <span
+            className="-mt-px row-span-2 flex size-5 items-center justify-center self-start text-muted-foreground [&_img]:size-4 [&_img]:rounded-[3px] [&_svg]:size-[15px]"
+            aria-hidden="true"
+          >
             {faviconUrl ? <img src={faviconUrl} alt="" /> : <GlobeIcon />}
           </span>
-          <span className="group-title">{group.label}</span>
-          {hasCurrentItem ? <span className="group-current">当前</span> : null}
-          <span className="group-counts">
+          <span className="overflow-hidden text-[12px] leading-4 font-[650] text-ellipsis whitespace-nowrap">
+            {group.label}
+          </span>
+          {hasCurrentItem ? (
+            <span className="self-center rounded-full border border-[color-mix(in_srgb,var(--primary),transparent_64%)] px-1.5 text-[10px] leading-[15px] font-[650] text-primary">
+              当前
+            </span>
+          ) : null}
+          <span className="[grid-column:3/-1] overflow-hidden font-mono text-[10px] leading-[13px] text-ellipsis whitespace-nowrap text-muted-foreground">
             {group.counts.total} 项 · 打开 {group.counts.active} · 归档{" "}
             {group.counts.archived} · 重复 {group.counts.duplicate}
           </span>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <div className="group-items">
+          <div className="flex flex-col">
             {group.items.map((item) => (
               <InventoryRow
                 key={itemKeyFor(item)}

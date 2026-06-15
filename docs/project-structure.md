@@ -110,6 +110,7 @@ React side panel 应用。
 - Chrome API 直接调用逻辑，除非是 UI 必须的轻量 runtime 调用。
 - storage schema 定义。
 - URL 规范化核心逻辑。
+- 大段组件级 CSS；组件布局、状态、hover 和响应式样式优先写 Tailwind utility class。
 
 ### `src/side-panel/components/`
 
@@ -273,6 +274,16 @@ Vite 配置需要保证：
 - `sonner`
 
 `tooltip` 不再作为 MVP 主交互依赖；如果后续确实需要 tooltip，先确认使用场景不会影响窄侧边栏可用性。
+
+## CSS 归属
+
+`src/side-panel/styles.css` 只保留：
+
+- Tailwind、shadcn 和字体 import。
+- theme token。
+- base reset。
+
+组件级样式写在对应 React 组件的 `className` 中，使用 Tailwind utilities 和必要的 arbitrary values。不要再为 side panel 组件新增大段全局 class CSS。
 
 ## 测试结构
 

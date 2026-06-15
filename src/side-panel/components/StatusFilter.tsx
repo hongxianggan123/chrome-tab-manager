@@ -21,7 +21,7 @@ export function StatusFilter({ value, counts, onChange }: StatusFilterProps) {
       type="single"
       value={value}
       spacing={1}
-      className="status-filter !grid !w-full !max-w-full !grid-cols-4"
+      className="!grid !w-full !max-w-full !grid-cols-4"
       onValueChange={(nextValue) => {
         if (nextValue) {
           onChange(nextValue as StatusFilterValue)
@@ -33,7 +33,7 @@ export function StatusFilter({ value, counts, onChange }: StatusFilterProps) {
           key={option.value}
           value={option.value}
           size="sm"
-          className="!w-full !min-w-0 !shrink"
+          className="!w-full !min-w-0 !shrink px-1.5 max-[360px]:px-1 max-[360px]:text-[11px]"
         >
           {option.label} {counts[option.value === "all" ? "total" : option.value]}
         </ToggleGroupItem>

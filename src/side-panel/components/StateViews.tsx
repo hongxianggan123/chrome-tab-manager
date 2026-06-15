@@ -16,11 +16,14 @@ import type { EmptyReason } from "@/domain/types"
 
 export function LoadingRows() {
   return (
-    <div className="loading-rows" aria-label="正在读取当前标签页">
+    <div
+      className="flex flex-col gap-2.5 p-3"
+      aria-label="正在读取当前标签页"
+    >
       {Array.from({ length: 6 }, (_, index) => (
-        <div className="loading-row" key={index}>
+        <div className="flex items-center gap-2.5" key={index}>
           <Skeleton className="size-8 rounded-lg" />
-          <div className="loading-row-lines">
+          <div className="flex flex-1 flex-col gap-1.5">
             <Skeleton className="h-4 w-3/4" />
             <Skeleton className="h-3 w-1/2" />
           </div>
@@ -32,7 +35,7 @@ export function LoadingRows() {
 
 export function ErrorView({ message }: { message: string }) {
   return (
-    <Alert variant="destructive" className="feedback-alert">
+    <Alert variant="destructive" className="mt-2.5">
       <AlertCircleIcon />
       <AlertTitle>无法读取标签页</AlertTitle>
       <AlertDescription>{message}</AlertDescription>
@@ -42,7 +45,7 @@ export function ErrorView({ message }: { message: string }) {
 
 export function InlineFeedback({ message }: { message: string }) {
   return (
-    <Alert className="feedback-alert">
+    <Alert className="mt-2.5">
       <AlertCircleIcon />
       <AlertTitle>操作未完成</AlertTitle>
       <AlertDescription>{message}</AlertDescription>
@@ -54,7 +57,7 @@ export function EmptyState({ reason }: { reason: EmptyReason }) {
   const copy = getEmptyCopy(reason)
 
   return (
-    <Empty className="empty-state">
+    <Empty className="px-5 py-12">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <FolderOpenIcon />
@@ -85,4 +88,3 @@ function getEmptyCopy(reason: EmptyReason) {
       }
   }
 }
-

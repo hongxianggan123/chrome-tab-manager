@@ -6,6 +6,8 @@
 
 - 使用 shadcn/ui 作为基础组件系统。
 - 使用组件内置 variants 和语义 token，不在组件上硬覆盖颜色和字体。
+- 组件级布局、状态、hover 和响应式样式优先写 Tailwind utility class。
+- `src/side-panel/styles.css` 只保存 import、theme token 和 base reset，不继续承载大段业务组件 CSS。
 - 布局使用 `gap-*`，不使用 `space-x-*` 或 `space-y-*`。
 - 状态徽标使用 `Badge`，不要手写圆角 `span`。
 - 空状态使用 `Empty`。

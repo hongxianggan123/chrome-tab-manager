@@ -14,7 +14,7 @@ type SearchBoxProps = {
 
 export function SearchBox({ value, onChange }: SearchBoxProps) {
   return (
-    <InputGroup className="search-box">
+    <InputGroup className="bg-card">
       <InputGroupAddon align="inline-start">
         <SearchIcon aria-hidden="true" />
       </InputGroupAddon>
@@ -42,4 +42,3 @@ export function SearchBox({ value, onChange }: SearchBoxProps) {
     </InputGroup>
   )
 }
-
