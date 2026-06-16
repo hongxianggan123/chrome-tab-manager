@@ -47,6 +47,8 @@ export async function readChromeSnapshot(): Promise<ChromeSnapshot> {
         originalUrl,
         title: tab.title || originalUrl,
         faviconUrl: tab.favIconUrl,
+        audible: tab.audible,
+        pinned: tab.pinned,
         active: Boolean(tab.active),
         index: tab.index,
         lastAccessed: tab.lastAccessed,

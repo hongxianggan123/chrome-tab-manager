@@ -31,6 +31,8 @@ export type TabInstanceSnapshot = {
   originalUrl: string
   title: string
   faviconUrl?: string
+  audible?: boolean
+  pinned?: boolean
   active: boolean
   index: number
   lastAccessed?: number
@@ -46,6 +48,8 @@ export type TabInstance = {
   hostname: Hostname
   title: string
   faviconUrl?: string
+  audible?: boolean
+  pinned?: boolean
   isSpecialUrl: boolean
   duplicateCount: number
   active: boolean
@@ -97,4 +101,3 @@ export type EmptyReason =
   | "no-normal-tabs"
   | "no-search-results"
   | "no-archived-tabs"
-

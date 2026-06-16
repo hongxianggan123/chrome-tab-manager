@@ -1,4 +1,6 @@
 import type { DomainStatePayload, WorkerRequest } from "@/worker/messages"
+import { countItems } from "@/domain/grouping"
+import type { InventoryItem } from "@/domain/types"
 
 export async function sendWorkerMessage(
   message: WorkerRequest
@@ -57,15 +59,144 @@ function handleDemoMessage(message: WorkerRequest): DomainStatePayload {
     }
   }
 
+  if (message.type === "tab:close") {
+    applyDemoItemMutation((items) =>
+      items.filter(
+        (item) => item.kind !== "active" || item.tabId !== message.tabId
+      )
+    )
+  }
+
+  if (message.type === "tabs:close") {
+    const tabIds = new Set(message.tabIds)
+    applyDemoItemMutation((items) =>
+      items.filter((item) => item.kind !== "active" || !tabIds.has(item.tabId))
+    )
+  }
+
+  if (message.type === "tab:archive") {
+    applyDemoItemMutation((items) =>
+      items.flatMap((item) =>
+        item.kind === "active" &&
+        item.tabId === message.tabId &&
+        !item.isSpecialUrl
+          ? [demoArchiveItem(item)]
+          : [item]
+      )
+    )
+  }
+
+  if (message.type === "tabs:archive") {
+    const tabIds = new Set(message.tabIds)
+    applyDemoItemMutation((items) =>
+      items.flatMap((item) =>
+        item.kind === "active" && tabIds.has(item.tabId) && !item.isSpecialUrl
+          ? [demoArchiveItem(item)]
+          : [item]
+      )
+    )
+  }
+
+  if (message.type === "archive:delete") {
+    applyDemoItemMutation((items) =>
+      items.filter(
+        (item) =>
+          item.kind !== "archived" ||
+          item.normalizedUrl !== message.normalizedUrl
+      )
+    )
+  }
+
+  if (message.type === "archives:delete") {
+    const normalizedUrls = new Set(message.normalizedUrls)
+    applyDemoItemMutation((items) =>
+      items.filter(
+        (item) =>
+          item.kind !== "archived" || !normalizedUrls.has(item.normalizedUrl)
+      )
+    )
+  }
+
   return structuredClone(demoState)
+}
+
+function applyDemoItemMutation(
+  mutateItems: (items: InventoryItem[]) => InventoryItem[]
+) {
+  if (!demoState) {
+    return
+  }
+
+  const groups = demoState.groups
+    .map((group) => {
+      const items = normalizeDemoItems(mutateItems(group.items))
+      return {
+        ...group,
+        items,
+        counts: countItems(items),
+      }
+    })
+    .filter((group) => group.items.length > 0)
+
+  demoState = {
+    ...demoState,
+    counts: countItems(groups.flatMap((group) => group.items)),
+    groups,
+  }
+}
+
+function normalizeDemoItems(items: InventoryItem[]): InventoryItem[] {
+  const activeItems = items.filter((item) => item.kind === "active")
+  const archivedItems = new Map<
+    string,
+    Extract<InventoryItem, { kind: "archived" }>
+  >()
+
+  for (const item of items) {
+    if (item.kind !== "archived") {
+      continue
+    }
+
+    const existing = archivedItems.get(item.normalizedUrl)
+    archivedItems.set(
+      item.normalizedUrl,
+      existing
+        ? {
+            ...item,
+            archiveCount: existing.archiveCount + item.archiveCount,
+          }
+        : item
+    )
+  }
+
+  return [...activeItems, ...archivedItems.values()]
+}
+
+function demoArchiveItem(
+  item: Extract<InventoryItem, { kind: "active" }>
+): Extract<InventoryItem, { kind: "archived" }> {
+  return {
+    kind: "archived",
+    normalizedUrl: item.normalizedUrl,
+    originalUrl: item.originalUrl,
+    hostname: item.hostname,
+    title: item.title,
+    faviconUrl: item.faviconUrl,
+    archivedAt: new Date().toISOString(),
+    archiveCount: 1,
+    sourceWindow: {
+      windowId: item.windowId,
+      label: item.windowLabel,
+    },
+  }
 }
 
 function createDemoState(): DomainStatePayload {
   return {
     generatedAt: new Date().toISOString(),
     counts: {
-      total: 6,
-      active: 5,
+      total: 5,
+      active: 4,
       archived: 1,
       duplicate: 2,
     },
@@ -150,6 +281,7 @@ function createDemoState(): DomainStatePayload {
             normalizedUrl: "https://github.com/org/repo/pull/48",
             hostname: "github.com",
             title: "Pull request #48",
+            audible: true,
             isSpecialUrl: false,
             duplicateCount: 1,
             active: false,
@@ -165,6 +297,7 @@ function createDemoState(): DomainStatePayload {
             normalizedUrl: "chrome://extensions/",
             hostname: "chrome",
             title: "Chrome Extensions",
+            pinned: true,
             isSpecialUrl: true,
             duplicateCount: 1,
             active: false,

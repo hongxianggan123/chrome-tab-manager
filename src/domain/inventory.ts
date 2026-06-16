@@ -29,6 +29,8 @@ export function toTabInstances(
         hostname,
         title: snapshot.title || snapshot.originalUrl,
         faviconUrl: snapshot.faviconUrl,
+        audible: snapshot.audible,
+        pinned: snapshot.pinned,
         isSpecialUrl: special,
         duplicateCount: 1,
         active: snapshot.active,
@@ -69,4 +71,3 @@ export function mergeInventory(
 
   return [...activeInstances, ...visibleArchived]
 }
-

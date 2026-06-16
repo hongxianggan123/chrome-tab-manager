@@ -1,4 +1,4 @@
-import { AlertCircleIcon, FolderOpenIcon } from "lucide-react"
+import { AlertCircleIcon, CheckCircle2Icon, FolderOpenIcon } from "lucide-react"
 import {
   Alert,
   AlertDescription,
@@ -43,11 +43,19 @@ export function ErrorView({ message }: { message: string }) {
   )
 }
 
-export function InlineFeedback({ message }: { message: string }) {
+export function InlineFeedback({
+  kind = "error",
+  message,
+}: {
+  kind?: "error" | "success"
+  message: string
+}) {
+  const Icon = kind === "success" ? CheckCircle2Icon : AlertCircleIcon
+
   return (
     <Alert className="mt-2.5">
-      <AlertCircleIcon />
-      <AlertTitle>操作未完成</AlertTitle>
+      <Icon />
+      <AlertTitle>{kind === "success" ? "操作完成" : "操作未完成"}</AlertTitle>
       <AlertDescription>{message}</AlertDescription>
     </Alert>
   )

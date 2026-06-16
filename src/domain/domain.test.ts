@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest"
+import { batchPlanTargetCount, createBatchActionPlan } from "./batch"
 import { filterGroups } from "./filters"
 import { buildGroups } from "./grouping"
-import { mergeInventory, toTabInstances } from "./inventory"
+import {
+  archivedRecordToItem,
+  mergeInventory,
+  toTabInstances,
+} from "./inventory"
 import { normalizeUrl } from "./normalize-url"
 import { isSpecialUrl, specialUrlGroupLabel } from "./special-url"
 import type { ArchivedTabRecord, TabInstanceSnapshot } from "./types"
@@ -33,6 +38,8 @@ const snapshots: TabInstanceSnapshot[] = [
     windowLabel: "W1",
     originalUrl: "https://github.com/org/repo/pull/48",
     title: "Pull request #48",
+    audible: true,
+    pinned: true,
     active: false,
     index: 1,
     lastAccessed: 150,
@@ -174,5 +181,70 @@ describe("filterGroups", () => {
     const result = filterGroups(groups, "", "archived")
 
     expect(result.emptyReason).toBe("no-archived-tabs")
+  })
+})
+
+describe("batch action plans", () => {
+  it("archives only ordinary active tabs and skips special URLs", () => {
+    const special = toTabInstances([
+      {
+        tabId: 9,
+        windowId: 10,
+        windowLabel: "W1",
+        originalUrl: "chrome://extensions",
+        title: "Extensions",
+        active: false,
+        index: 2,
+      },
+    ])
+    const items = [
+      ...toTabInstances(snapshots),
+      ...special,
+      archivedRecordToItem(archivedRecord()),
+    ]
+    const plan = createBatchActionPlan("archive", items, 200)
+
+    expect(plan.targetTabIds).toEqual([1, 2, 3])
+    expect(plan.skipped.special).toBe(1)
+    expect(plan.skipped.archived).toBe(1)
+    expect(batchPlanTargetCount(plan)).toBe(3)
+  })
+
+  it("deletes only archived records and skips selected active tabs", () => {
+    const items = [
+      ...toTabInstances(snapshots),
+      archivedRecordToItem(archivedRecord()),
+    ]
+    const plan = createBatchActionPlan("deleteArchive", items)
+
+    expect(plan.targetNormalizedUrls).toEqual(["https://example.com/archive"])
+    expect(plan.skipped.active).toBe(3)
+    expect(batchPlanTargetCount(plan)).toBe(1)
+  })
+
+  it("keeps risky close targets in the plan summary", () => {
+    const items = toTabInstances([
+      {
+        tabId: 4,
+        windowId: 10,
+        windowLabel: "W1",
+        originalUrl: "chrome://extensions",
+        title: "Extensions",
+        active: false,
+        index: 0,
+        pinned: true,
+        audible: true,
+        lastAccessed: 1_000,
+      },
+    ])
+    const plan = createBatchActionPlan("close", items, 2_000)
+
+    expect(plan.targetTabIds).toEqual([4])
+    expect(plan.risk).toEqual({
+      special: 1,
+      audible: 1,
+      pinned: 1,
+      recent: 1,
+    })
   })
 })

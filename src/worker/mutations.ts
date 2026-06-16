@@ -6,6 +6,7 @@ import {
   readStorageRoot,
   setGroupCollapsed,
   upsertArchivedRecord,
+  writeStorageRoot,
 } from "@/storage/local-storage"
 import { readChromeSnapshot } from "./chrome-snapshot"
 import { buildDomainState } from "./refresh"
@@ -34,6 +35,21 @@ export async function closeTab(tabId: number): Promise<MutationResult> {
     return { ok: true, state: await buildDomainState() }
   } catch {
     return failure("chrome_api_failed", "无法关闭这个标签页。它可能已经被关闭。")
+  }
+}
+
+export async function closeTabs(tabIds: number[]): Promise<MutationResult> {
+  const uniqueTabIds = [...new Set(tabIds)]
+
+  if (uniqueTabIds.length === 0) {
+    return { ok: true, state: await buildDomainState() }
+  }
+
+  try {
+    await chrome.tabs.remove(uniqueTabIds)
+    return { ok: true, state: await buildDomainState() }
+  } catch {
+    return failure("chrome_api_failed", "无法关闭选中的标签页。部分标签页可能已经被关闭。")
   }
 }
 
@@ -93,6 +109,81 @@ export async function archiveTab(tabId: number): Promise<MutationResult> {
   }
 }
 
+export async function archiveTabs(tabIds: number[]): Promise<MutationResult> {
+  const selectedTabIds = new Set(tabIds)
+
+  if (selectedTabIds.size === 0) {
+    return { ok: true, state: await buildDomainState() }
+  }
+
+  const [snapshot, storageRoot] = await Promise.all([
+    readChromeSnapshot(),
+    readStorageRoot(),
+  ])
+  const tabs = snapshot.tabs.filter(
+    (tab) => selectedTabIds.has(tab.tabId) && !isSpecialUrl(tab.originalUrl)
+  )
+
+  if (tabs.length === 0) {
+    return { ok: true, state: await buildDomainState() }
+  }
+
+  const selectedByNormalizedUrl = new Map<string, typeof tabs>()
+  for (const tab of tabs) {
+    const normalizedUrl = normalizeUrl(tab.originalUrl)
+    selectedByNormalizedUrl.set(normalizedUrl, [
+      ...(selectedByNormalizedUrl.get(normalizedUrl) ?? []),
+      tab,
+    ])
+  }
+
+  const nextArchivedTabs = { ...storageRoot.archivedTabs }
+  for (const [normalizedUrl, selectedTabs] of selectedByNormalizedUrl) {
+    const hasRemainingOpenInstance = snapshot.tabs.some(
+      (candidate) =>
+        !selectedTabIds.has(candidate.tabId) &&
+        normalizeUrl(candidate.originalUrl) === normalizedUrl
+    )
+
+    if (hasRemainingOpenInstance) {
+      continue
+    }
+
+    const tab = selectedTabs[selectedTabs.length - 1]
+    const existing = storageRoot.archivedTabs[normalizedUrl]
+    const record: ArchivedTabRecord = {
+      normalizedUrl,
+      originalUrl: tab.originalUrl,
+      title: tab.title || tab.originalUrl,
+      faviconUrl: tab.faviconUrl,
+      hostname: new URL(tab.originalUrl).hostname.toLowerCase(),
+      archivedAt: new Date().toISOString(),
+      archiveCount: (existing?.archiveCount ?? 0) + selectedTabs.length,
+      sourceWindow: {
+        windowId: tab.windowId,
+        label: tab.windowLabel,
+      },
+    }
+    nextArchivedTabs[normalizedUrl] = record
+  }
+
+  try {
+    await chrome.tabs.remove(tabs.map((tab) => tab.tabId))
+  } catch {
+    return failure("chrome_api_failed", "无法归档选中的标签页。部分标签页可能已经被关闭。")
+  }
+
+  try {
+    await writeStorageRoot({
+      ...storageRoot,
+      archivedTabs: nextArchivedTabs,
+    })
+    return { ok: true, state: await buildDomainState() }
+  } catch {
+    return failure("storage_failed", "标签页已关闭，但部分归档记录保存失败。")
+  }
+}
+
 export async function restoreArchive(
   normalizedUrl: string
 ): Promise<MutationResult> {
@@ -139,6 +230,25 @@ export async function deleteArchive(
   }
 }
 
+export async function deleteArchives(
+  normalizedUrls: string[]
+): Promise<MutationResult> {
+  try {
+    const root = await readStorageRoot()
+    const normalizedUrlSet = new Set(normalizedUrls)
+    const archivedTabs = Object.fromEntries(
+      Object.entries(root.archivedTabs).filter(
+        ([normalizedUrl]) => !normalizedUrlSet.has(normalizedUrl)
+      )
+    )
+
+    await writeStorageRoot({ ...root, archivedTabs })
+    return { ok: true, state: await buildDomainState() }
+  } catch {
+    return failure("storage_failed", "无法删除选中的归档记录。")
+  }
+}
+
 export async function updateGroupCollapsed(
   groupKey: string,
   collapsed: boolean
@@ -157,4 +267,3 @@ function failure(code: WorkerError["code"], message: string): MutationResult {
     error: { code, message },
   }
 }
-

@@ -6,8 +6,11 @@ import type {
 } from "@/worker/messages"
 import {
   archiveTab,
+  archiveTabs,
   closeTab,
+  closeTabs,
   deleteArchive,
+  deleteArchives,
   jumpToTab,
   restoreArchive,
   updateGroupCollapsed,
@@ -75,10 +78,16 @@ async function handleMessage(message: WorkerRequest): Promise<WorkerResponse> {
       return closeTab(message.tabId)
     case "tab:archive":
       return archiveTab(message.tabId)
+    case "tabs:close":
+      return closeTabs(message.tabIds)
+    case "tabs:archive":
+      return archiveTabs(message.tabIds)
     case "archive:restore":
       return restoreArchive(message.normalizedUrl)
     case "archive:delete":
       return deleteArchive(message.normalizedUrl)
+    case "archives:delete":
+      return deleteArchives(message.normalizedUrls)
     case "group:setCollapsed":
       return updateGroupCollapsed(message.groupKey, message.collapsed)
   }

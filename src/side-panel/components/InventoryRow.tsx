@@ -8,11 +8,14 @@ import { Button } from "@/components/ui/button"
 import { compactUrl } from "@/domain/normalize-url"
 import type { InventoryItem } from "@/domain/types"
 import { cn } from "@/lib/utils"
+import { SelectionSlot } from "./SelectionSlot"
 
 type InventoryRowProps = {
   item: InventoryItem
   isCurrent: boolean
+  selected: boolean
   onJump: (item: InventoryItem) => void
+  onSelectedChange: (selected: boolean) => void
   onArchive: (tabId: number) => void
   onClose: (tabId: number) => void
   onDeleteArchive: (normalizedUrl: string) => void
@@ -23,14 +26,15 @@ type InventoryRowProps = {
 export function InventoryRow({
   item,
   isCurrent,
+  selected,
   onJump,
+  onSelectedChange,
   onArchive,
   onClose,
   onDeleteArchive,
   onPreviewUrlChange,
   onInspectUrl,
 }: InventoryRowProps) {
-  const status = getStatus(item)
   const urlLabel = compactUrl(item.originalUrl)
 
   return (
@@ -38,12 +42,15 @@ export function InventoryRow({
       role="button"
       tabIndex={0}
       className={cn(
-        "grid min-h-16 w-full cursor-pointer grid-cols-[3px_minmax(0,1fr)] gap-2 border-0 bg-transparent py-2 pr-2.5 pl-3 text-left text-inherit hover:bg-[color-mix(in_srgb,var(--accent),transparent_45%)] focus-visible:-outline-offset-2 focus-visible:outline-2 focus-visible:outline-ring",
+        "group/row relative min-h-16 w-full cursor-pointer border-0 bg-transparent py-2 pr-2.5 pl-3 text-left text-inherit transition-[padding,background-color] duration-200 ease-out hover:bg-[color-mix(in_srgb,var(--accent),transparent_45%)] focus-visible:-outline-offset-2 focus-visible:outline-2 focus-visible:outline-ring",
         isCurrent &&
-          "bg-card bg-gradient-to-r from-primary/10 via-primary/5 to-transparent ring-1 ring-primary/25 shadow-[inset_0_1px_0_color-mix(in_srgb,#ffffff,transparent_18%)] hover:from-primary/15 hover:via-primary/8"
+          "bg-card bg-gradient-to-r from-primary/10 via-primary/5 to-transparent ring-1 ring-primary/25 shadow-[inset_0_1px_0_color-mix(in_srgb,#ffffff,transparent_18%)] hover:from-primary/15 hover:via-primary/8",
+        selected &&
+          "bg-[color-mix(in_srgb,var(--primary),transparent_91%)] pl-9"
       )}
-      data-status={status}
+      data-status={getStatus(item)}
       data-current={isCurrent}
+      aria-selected={selected}
       aria-current={isCurrent ? "page" : undefined}
       onMouseEnter={() => onPreviewUrlChange(item.originalUrl)}
       onFocus={() => onPreviewUrlChange(item.originalUrl)}
@@ -58,7 +65,11 @@ export function InventoryRow({
         }
       }}
     >
-      <div className={getRailClassName(status, isCurrent)} aria-hidden="true" />
+      <SelectionSlot
+        label={selected ? `取消选择 ${item.title}` : `选择 ${item.title}`}
+        selected={selected}
+        onToggle={() => onSelectedChange(!selected)}
+      />
       <div className="flex min-w-0 flex-col gap-[3px]">
         <div className="flex min-w-0 items-center gap-[5px]">
           <span className="min-w-0 flex-1 overflow-hidden text-[13px] leading-[18px] font-[560] text-ellipsis whitespace-nowrap">
@@ -108,7 +119,7 @@ export function InventoryRow({
 
 function StatusBadges({ item }: { item: InventoryItem }) {
   if (item.kind === "archived") {
-  return (
+    return (
       <div className="flex min-w-0 flex-wrap gap-1">
         <Badge variant="secondary">已归档</Badge>
         {item.sourceWindow ? (
@@ -126,6 +137,8 @@ function StatusBadges({ item }: { item: InventoryItem }) {
         <Badge variant="secondary">重复 x{item.duplicateCount}</Badge>
       ) : null}
       {item.isSpecialUrl ? <Badge variant="outline">特殊 URL</Badge> : null}
+      {item.audible ? <Badge variant="outline">播放中</Badge> : null}
+      {item.pinned ? <Badge variant="outline">原生置顶</Badge> : null}
     </div>
   )
 }
@@ -158,21 +171,6 @@ function IconButton({
     >
       {children}
     </Button>
-  )
-}
-
-function getRailClassName(status: string, isCurrent: boolean) {
-  return cn(
-    "self-stretch rounded-full bg-tab-rail-active",
-    !isCurrent && "w-[3px]",
-    status === "archived" &&
-      "bg-[repeating-linear-gradient(to_bottom,var(--color-tab-rail-archived),var(--color-tab-rail-archived)_4px,transparent_4px,transparent_7px)]",
-    status === "duplicate" &&
-      "bg-[linear-gradient(to_bottom,var(--color-tab-rail-duplicate)_0_45%,var(--color-tab-rail-active)_45%_100%)]",
-    status === "special" &&
-      "bg-[repeating-linear-gradient(to_bottom,var(--color-tab-rail-special),var(--color-tab-rail-special)_2px,transparent_2px,transparent_5px)]",
-    isCurrent &&
-      "w-1 bg-primary shadow-[0_0_0_3px_color-mix(in_srgb,var(--primary),transparent_86%)]"
   )
 }
 

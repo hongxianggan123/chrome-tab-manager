@@ -27,8 +27,11 @@ export type WorkerRequest =
   | { type: "tab:jump"; tabId: number; windowId: number }
   | { type: "tab:close"; tabId: number }
   | { type: "tab:archive"; tabId: number }
+  | { type: "tabs:close"; tabIds: number[] }
+  | { type: "tabs:archive"; tabIds: number[] }
   | { type: "archive:restore"; normalizedUrl: string }
   | { type: "archive:delete"; normalizedUrl: string }
+  | { type: "archives:delete"; normalizedUrls: string[] }
   | { type: "group:setCollapsed"; groupKey: string; collapsed: boolean }
 
 export type WorkerResponse =
