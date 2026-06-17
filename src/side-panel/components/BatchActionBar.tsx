@@ -50,7 +50,7 @@ export function BatchActionBar({
 
     return (
       <section
-        className="border-t border-[color-mix(in_srgb,var(--background),transparent_82%)] bg-foreground px-3 py-2 text-background shadow-[0_-10px_24px_color-mix(in_srgb,var(--foreground),transparent_78%)]"
+        className="border-t border-[color-mix(in_srgb,var(--background),transparent_82%)] bg-foreground px-3 py-2 text-background"
         aria-label="批量操作确认"
       >
         <div className="flex flex-col gap-2">
@@ -110,7 +110,7 @@ export function BatchActionBar({
 
   return (
     <section
-      className="border-t border-[color-mix(in_srgb,var(--background),transparent_82%)] bg-foreground px-3 py-2 text-background shadow-[0_-10px_24px_color-mix(in_srgb,var(--foreground),transparent_78%)]"
+      className="border-t border-[color-mix(in_srgb,var(--background),transparent_82%)] bg-foreground px-3 py-2 text-background"
       aria-label="批量操作"
     >
       <div className="flex flex-col gap-2">

@@ -221,22 +221,25 @@ Chrome 事件不直接增量修改复杂 UI 状态。MVP 采用 snapshot refresh
 - 连续 tabs 事件合并为一次刷新。
 - 用户命令成功后立即刷新，不等待 debounce。
 - 用户命令失败时返回错误，并按需要刷新当前状态。
+- 如果 Chrome 事件发生时没有 side panel port，service worker 仍保留 dirty 标记；后续 side panel port 连接时需要安排一次 debounced refresh，补发最新状态。
 
 ## Side Panel Connection
 
 side panel 打开时：
 
-1. 建立 runtime port 或发送 `state:get`。
-2. service worker 记录 panel connected。
-3. service worker 返回当前派生状态。
+1. 发送 `state:get` 获取初始快照。
+2. 建立名为 `side-panel` 的 runtime port，接收 `state:changed` 推送。
+3. service worker 记录 panel connected。
+4. 如果连接前 runtime 已 dirty，service worker 安排一次 debounced refresh 并推送最新派生状态。
 
 side panel 关闭或断开时：
 
 1. service worker 清理 connected panel 引用。
-2. 不持久化搜索词、过滤状态、toast 状态。
-3. Chrome 事件只标记 dirty，不主动做 UI 推送。
+2. side panel 端延迟重连 runtime port，并在重连后重新发送 `state:get`，补齐断开期间可能漏掉的 Chrome 事件。
+3. 不持久化搜索词、过滤状态、toast 状态。
+4. Chrome 事件在没有 connected panel 时只标记 dirty，不主动做 UI 推送。
 
-MVP 可先使用 `chrome.runtime.sendMessage` 请求/响应；如果刷新推送体验不足，再升级为 long-lived port。
+MVP 使用 `sendMessage` 做请求/响应，使用 long-lived port 做 side panel 打开期间的推送。由于 Manifest V3 service worker 可能重启或断开 port，side panel 不能假设一次 `connect()` 永久有效。
 
 ## State Refresh Pipeline
 

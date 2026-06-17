@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/empty"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { EmptyReason } from "@/domain/types"
+import { cn } from "@/lib/utils"
 
 export function LoadingRows() {
   return (
@@ -46,14 +47,16 @@ export function ErrorView({ message }: { message: string }) {
 export function InlineFeedback({
   kind = "error",
   message,
+  className,
 }: {
   kind?: "error" | "success"
   message: string
+  className?: string
 }) {
   const Icon = kind === "success" ? CheckCircle2Icon : AlertCircleIcon
 
   return (
-    <Alert className="mt-2.5">
+    <Alert className={cn("mt-2.5", className)}>
       <Icon />
       <AlertTitle>{kind === "success" ? "操作完成" : "操作未完成"}</AlertTitle>
       <AlertDescription>{message}</AlertDescription>

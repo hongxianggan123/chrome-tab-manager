@@ -5,7 +5,6 @@ import {
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { compactUrl } from "@/domain/normalize-url"
 import type { InventoryItem } from "@/domain/types"
 import { cn } from "@/lib/utils"
 import { SelectionSlot } from "./SelectionSlot"
@@ -19,8 +18,6 @@ type InventoryRowProps = {
   onArchive: (tabId: number) => void
   onClose: (tabId: number) => void
   onDeleteArchive: (normalizedUrl: string) => void
-  onPreviewUrlChange: (url: string | null) => void
-  onInspectUrl: (url: string) => void
 }
 
 export function InventoryRow({
@@ -32,19 +29,15 @@ export function InventoryRow({
   onArchive,
   onClose,
   onDeleteArchive,
-  onPreviewUrlChange,
-  onInspectUrl,
 }: InventoryRowProps) {
-  const urlLabel = compactUrl(item.originalUrl)
-
   return (
     <div
       role="button"
       tabIndex={0}
       className={cn(
-        "group/row relative min-h-16 w-full cursor-pointer border-0 bg-transparent py-2 pr-2.5 pl-3 text-left text-inherit transition-[padding,background-color] duration-200 ease-out hover:bg-[color-mix(in_srgb,var(--accent),transparent_45%)] focus-visible:-outline-offset-2 focus-visible:outline-2 focus-visible:outline-ring",
+        "group/row relative isolate z-0 min-h-[52px] w-full cursor-pointer border-0 bg-transparent py-[7px] pr-2.5 pl-3 text-left text-inherit transition-[padding,background-color] duration-200 ease-out hover:bg-[color-mix(in_srgb,var(--accent),transparent_45%)] focus-visible:-outline-offset-2 focus-visible:outline-2 focus-visible:outline-ring [&:has([data-slot=selection-hitarea]:focus-visible)_[data-slot=active-marker]]:opacity-0 [&:has([data-slot=selection-hitarea]:hover)_[data-slot=active-marker]]:opacity-0",
         isCurrent &&
-          "bg-card bg-gradient-to-r from-primary/10 via-primary/5 to-transparent ring-1 ring-primary/25 shadow-[inset_0_1px_0_color-mix(in_srgb,#ffffff,transparent_18%)] hover:from-primary/15 hover:via-primary/8",
+          "bg-[color-mix(in_srgb,var(--primary),transparent_97%)] shadow-[inset_0_1px_0_color-mix(in_srgb,var(--primary),transparent_90%)] hover:bg-[color-mix(in_srgb,var(--primary),transparent_95%)]",
         selected &&
           "bg-[color-mix(in_srgb,var(--primary),transparent_91%)] pl-9"
       )}
@@ -52,8 +45,6 @@ export function InventoryRow({
       data-current={isCurrent}
       aria-selected={selected}
       aria-current={isCurrent ? "page" : undefined}
-      onMouseEnter={() => onPreviewUrlChange(item.originalUrl)}
-      onFocus={() => onPreviewUrlChange(item.originalUrl)}
       onClick={() => onJump(item)}
       onKeyDown={(event) => {
         if (event.target !== event.currentTarget) {
@@ -70,9 +61,16 @@ export function InventoryRow({
         selected={selected}
         onToggle={() => onSelectedChange(!selected)}
       />
-      <div className="flex min-w-0 flex-col gap-[3px]">
+      <div className="flex min-w-0 flex-col gap-0.5">
         <div className="flex min-w-0 items-center gap-[5px]">
-          <span className="min-w-0 flex-1 overflow-hidden text-[13px] leading-[18px] font-[560] text-ellipsis whitespace-nowrap">
+          {isCurrent ? (
+            <span
+              data-slot="active-marker"
+              aria-hidden="true"
+              className="h-3.5 w-0.5 shrink-0 rounded-full bg-primary shadow-[0_0_0_2px_color-mix(in_srgb,var(--primary),transparent_88%)] transition-opacity duration-150"
+            />
+          ) : null}
+          <span className="min-w-0 flex-1 overflow-hidden text-[12.5px] leading-[17px] font-[560] text-ellipsis whitespace-nowrap">
             {item.title}
           </span>
           <div className="ml-auto flex shrink-0 gap-0.5">
@@ -96,49 +94,63 @@ export function InventoryRow({
             )}
           </div>
         </div>
-        <button
-          type="button"
-          className="block w-fit max-w-full cursor-pointer overflow-hidden rounded border-0 bg-transparent p-0 font-mono text-[10.5px] leading-[15px] text-ellipsis whitespace-nowrap text-muted-foreground hover:bg-primary/10 hover:text-primary hover:underline hover:decoration-1 hover:underline-offset-2 focus-visible:bg-primary/10 focus-visible:text-primary focus-visible:underline focus-visible:decoration-1 focus-visible:underline-offset-2 focus-visible:outline-0"
-          onClick={(event) => {
-            event.stopPropagation()
-            onInspectUrl(item.originalUrl)
-          }}
-          onKeyDown={(event) => {
-            event.stopPropagation()
-          }}
-        >
-          {urlLabel}
-        </button>
         <div className="block min-w-0">
-          <StatusBadges item={item} />
+          <StatusBadges item={item} isCurrent={isCurrent} />
         </div>
       </div>
     </div>
   )
 }
 
-function StatusBadges({ item }: { item: InventoryItem }) {
+function StatusBadges({
+  item,
+  isCurrent,
+}: {
+  item: InventoryItem
+  isCurrent: boolean
+}) {
   if (item.kind === "archived") {
     return (
-      <div className="flex min-w-0 flex-wrap gap-1">
-        <Badge variant="secondary">已归档</Badge>
+      <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10.5px] leading-[15px] text-muted-foreground">
+        <Badge variant="secondary" className="h-[18px] px-1.5 text-[10px]">
+          已归档
+        </Badge>
         {item.sourceWindow ? (
-          <Badge variant="outline">来自 {item.sourceWindow.label}</Badge>
+          <span>来自 {item.sourceWindow.label}</span>
         ) : null}
       </div>
     )
   }
 
   return (
-    <div className="flex min-w-0 flex-wrap gap-1">
-      {item.active ? <Badge variant="default">当前</Badge> : null}
-      <Badge variant="outline">{item.windowLabel}</Badge>
-      {item.duplicateCount > 1 ? (
-        <Badge variant="secondary">重复 x{item.duplicateCount}</Badge>
+    <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10.5px] leading-[15px] text-muted-foreground">
+      {isCurrent ? (
+        <Badge
+          variant="outline"
+          className="h-[17px] border-[color-mix(in_srgb,var(--primary),transparent_62%)] bg-[color-mix(in_srgb,var(--primary),transparent_92%)] px-1.5 text-[9.5px] font-[650] text-primary"
+        >
+          当前
+        </Badge>
       ) : null}
-      {item.isSpecialUrl ? <Badge variant="outline">特殊 URL</Badge> : null}
-      {item.audible ? <Badge variant="outline">播放中</Badge> : null}
-      {item.pinned ? <Badge variant="outline">原生置顶</Badge> : null}
+      <span>{item.windowLabel}</span>
+      {item.duplicateCount > 1 ? (
+        <span>重复 x{item.duplicateCount}</span>
+      ) : null}
+      {item.isSpecialUrl ? (
+        <Badge variant="outline" className="h-[18px] px-1.5 text-[10px]">
+          特殊 URL
+        </Badge>
+      ) : null}
+      {item.audible ? (
+        <Badge variant="outline" className="h-[18px] px-1.5 text-[10px]">
+          播放中
+        </Badge>
+      ) : null}
+      {item.pinned ? (
+        <Badge variant="outline" className="h-[18px] px-1.5 text-[10px]">
+          原生置顶
+        </Badge>
+      ) : null}
     </div>
   )
 }

@@ -20,6 +20,7 @@ export function SelectionSlot({
   return (
     <button
       type="button"
+      data-slot="selection-hitarea"
       aria-label={label}
       aria-pressed={mixed ? "mixed" : selected}
       className={cn(

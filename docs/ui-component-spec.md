@@ -13,13 +13,13 @@ SidePanel
 ├─ PanelHeader
 ├─ SearchBox
 ├─ StatusFilter
+├─ DuplicateCleanupAction
 ├─ FeedbackRegion
 ├─ GroupList
 │  ├─ GroupSection
 │  │  ├─ GroupHeader
 │  │  └─ InventoryRow
 │  └─ EmptyState
-└─ UrlInspector
 ```
 
 ## SidePanel
@@ -30,13 +30,12 @@ SidePanel
 - 控制 loading、error、empty、content 四类主状态。
 - 保持顶部搜索和过滤区域固定在上方，列表区域滚动。
 - 管理当前 active tab 的可视锚定。
-- 管理底部固定 URL inspector 的预览和锁定状态。
 
 尺寸建议：
 
 - 默认宽度按 360px 设计。
 - 最小宽度 320px。
-- 顶部控制区不超过 132px，避免挤压列表。
+- 顶部控制区不超过 176px，避免挤压列表。
 
 结构：
 
@@ -45,12 +44,11 @@ SidePanel
 │ PanelHeader                │
 │ SearchBox                  │
 │ StatusFilter               │
+│ DuplicateCleanupAction     │
 ├────────────────────────────┤
 │ FeedbackRegion             │
 ├────────────────────────────┤
 │ GroupList                  │
-├────────────────────────────┤
-│ UrlInspector                │
 └────────────────────────────┘
 ```
 
@@ -134,6 +132,37 @@ Tabs                                      42
 - 同一时间只能选中一个状态。
 - 状态过滤最多保留在当前侧边栏会话内，不跨浏览器重启。
 
+## DuplicateCleanupAction
+
+职责：
+
+- 快速选中当前可见结果中可清理的重复标签实例。
+- 只产生批量选择，不直接关闭、归档或删除。
+
+位置：
+
+- 位于顶部控制区中，放在 StatusFilter 下方。
+- 使用右对齐、内容宽度的轻量胶囊，不占满整行。
+
+内容：
+
+```text
+                         [ 选中重复 3 ]
+```
+
+行为：
+
+- 点击后替换当前选择集合，并清除待确认的批量动作。
+- 搜索或过滤激活时，只根据当前可见结果计算目标。
+- 每个可见重复组保留一个重复组保留实例，选中其余可见打开项。
+- 没有可选目标时保留入口但 disabled，文案为 `无重复`，避免顶部布局跳动。
+- `保留 N 个最新` 作为可访问标签和浏览器 title 提供，不在顶部常显。
+
+视觉：
+
+- 左侧使用重复语义图标，不使用竖向重复轨道。
+- 使用重复状态的琥珀描边和 hover 底色，但默认保持透明背景，避免抢占搜索和过滤入口。
+
 ## FeedbackRegion
 
 职责：
@@ -173,7 +202,7 @@ Tabs                                      42
 滚动：
 
 - 只有 GroupList 滚动，顶部搜索和过滤保持可见。
-- 分组标题可以普通滚动，不要求 sticky。MVP 先避免 sticky 复杂性。
+- 分组标题在 GroupList 滚动容器内吸顶，背景保持不透明，并通过下沿分隔与滚动中的行区分。
 
 排序：
 
@@ -227,14 +256,12 @@ Tabs                                      42
 
 ```text
 │标题                              │
-│docs.google.com/document/...       │
 │当前 W2 重复 x2           归档 关闭│
 ```
 
 字段：
 
 - 标题
-- 紧凑 URL：完整 host + path 截断
 - 当前 active tab 标识
 - 窗口标识
 - 重复徽标
@@ -253,14 +280,12 @@ Tabs                                      42
 
 ```text
 │API notes                         │
-│docs.google.com/document/...       │
 │已归档 · 来自 W2             删除 │
 ```
 
 字段：
 
 - 归档时保存的标题
-- 紧凑 URL
 - 最后来源窗口
 - 归档状态
 
@@ -308,23 +333,11 @@ Tabs                                      42
 - 当前行展示 `当前` 徽标。
 - 当前行使用轻量背景和边框突出。
 - 当前行所属分组标题展示 `当前` 提示。
-- 自动滚动只发生在当前项变化时，不因 hover 或 URL inspector 变化触发。
+- 自动滚动只发生在当前项变化时。
 
-## URL Inspector
+## 完整 URL 查看
 
-职责：
-
-- 展示完整 URL。
-- 替代 tooltip，避免长 URL 在窄侧边栏里被遮挡或截断。
-
-行为：
-
-- 默认固定在底部，展示最近预览 URL 或提示文案。
-- hover 或 focus 行时，可以更新预览 URL。
-- 点击行内 URL 后锁定 inspector 并展开。
-- 锁定后 hover 其他行不覆盖内容。
-- 展开状态下 URL 支持自动换行。
-- 再次点击 inspector 可收起或展开。
+当前侧边栏主列表暂不展示完整 URL 或紧凑 URL，也不使用底部 URL inspector。后续如果重新加入完整 URL 查看能力，需要单独设计入口，避免占用高密度列表空间。
 
 ## 操作按钮
 
@@ -440,12 +453,10 @@ Chrome 没有返回当前标签页列表。
 | 关闭按钮 | 关闭标签页 |
 | 删除归档记录 | 删除归档记录 |
 | 当前页 | 当前 |
-| URL inspector 空状态 | 点击行内 URL 查看完整地址 |
 
 说明：
 
 - 状态徽标使用中文短标签，保持界面语言一致。
-- `特殊 URL` 保留 URL 缩写。
 - 操作按钮使用中文 `aria-label`，降低误操作。
 
 ## UI 决策状态

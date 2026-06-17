@@ -49,6 +49,8 @@ chrome.runtime.onConnect.addListener((port) => {
   }
 
   sidePanelPorts.add(port)
+  schedulePushRefresh()
+
   port.onDisconnect.addListener(() => {
     sidePanelPorts.delete(port)
   })

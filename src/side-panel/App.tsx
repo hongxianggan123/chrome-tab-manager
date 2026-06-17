@@ -12,6 +12,7 @@ import {
   type BatchActionPlan,
   type InventoryItemKey,
 } from "@/domain/batch"
+import { getDuplicateCleanupTargets } from "@/domain/duplicate-cleanup"
 import { filterGroups } from "@/domain/filters"
 import type { InventoryItem, StatusFilter } from "@/domain/types"
 import { cn } from "@/lib/utils"
@@ -22,6 +23,7 @@ import type {
 } from "@/worker/messages"
 import { sendWorkerMessage } from "./api"
 import { BatchActionBar } from "./components/BatchActionBar"
+import { DuplicateCleanupAction } from "./components/DuplicateCleanupAction"
 import { GroupSection } from "./components/GroupSection"
 import { PanelHeader } from "./components/PanelHeader"
 import { SearchBox } from "./components/SearchBox"
@@ -31,6 +33,7 @@ import {
   InlineFeedback,
   LoadingRows,
 } from "./components/StateViews"
+import { createSidePanelPortSession } from "./runtime-port"
 import { StatusFilter as StatusFilterControl } from "./components/StatusFilter"
 
 export function App() {
@@ -44,16 +47,12 @@ export function App() {
     kind: "error" | "success"
     message: string
   } | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const [lockedUrl, setLockedUrl] = useState<string | null>(null)
-  const [isUrlInspectorExpanded, setIsUrlInspectorExpanded] = useState(false)
   const [selectedItemKeys, setSelectedItemKeys] = useState<
     Set<InventoryItemKey>
   >(() => new Set())
   const [pendingBatchPlan, setPendingBatchPlan] =
     useState<BatchActionPlan | null>(null)
   const [isPending, startTransition] = useTransition()
-  const inspectedUrl = lockedUrl ?? previewUrl
 
   const loadState = useCallback(async () => {
     try {
@@ -73,22 +72,20 @@ export function App() {
       return
     }
 
-    const port = chrome.runtime.connect({ name: "side-panel" })
-    const handleMessage = (message: WorkerPushMessage) => {
-      if (message.type === "state:changed") {
-        startTransition(() => {
-          setState(message.state)
-        })
-      }
-    }
-
-    port.onMessage.addListener(handleMessage)
-
-    return () => {
-      port.onMessage.removeListener(handleMessage)
-      port.disconnect()
-    }
-  }, [])
+    return createSidePanelPortSession({
+      connect: () => chrome.runtime.connect({ name: "side-panel" }),
+      onPushMessage: (message: WorkerPushMessage) => {
+        if (message.type === "state:changed") {
+          startTransition(() => {
+            setState(message.state)
+          })
+        }
+      },
+      onReconnect: () => {
+        void loadState()
+      },
+    })
+  }, [loadState])
 
   const viewState = useMemo(() => {
     if (!state) {
@@ -96,6 +93,16 @@ export function App() {
     }
     return filterGroups(state.groups, query, statusFilter)
   }, [query, state, statusFilter])
+
+  const duplicateCleanupTargets = useMemo(
+    () => getDuplicateCleanupTargets(viewState?.visibleGroups ?? []),
+    [viewState]
+  )
+  const retainedDuplicateCount = useMemo(
+    () =>
+      new Set(duplicateCleanupTargets.map((item) => item.normalizedUrl)).size,
+    [duplicateCleanupTargets]
+  )
 
   const currentItemKey = useMemo(() => {
     for (const group of viewState?.visibleGroups ?? []) {
@@ -171,6 +178,18 @@ export function App() {
     return () => window.cancelAnimationFrame(frameId)
   }, [currentItemKey])
 
+  useEffect(() => {
+    if (!feedback) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setFeedback(null)
+    }, 5000)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [feedback])
+
   const runCommand = useCallback(async (message: WorkerRequest) => {
     try {
       setFeedback(null)
@@ -228,17 +247,17 @@ export function App() {
     [runCommand]
   )
 
+  const handleSelectDuplicateCleanupTargets = useCallback(() => {
+    setSelectedItemKeys(
+      new Set(duplicateCleanupTargets.map((item) => inventoryItemKey(item)))
+    )
+    setPendingBatchPlan(null)
+  }, [duplicateCleanupTargets])
+
   return (
     <main
-      className={cn(
-        "flex h-screen w-screen max-w-screen flex-col overflow-hidden bg-background",
-        getMainBottomPadding(
-          Boolean(selectedItems.length),
-          Boolean(inspectedUrl && isUrlInspectorExpanded)
-        )
-      )}
+      className="flex h-screen w-screen max-w-screen flex-col overflow-hidden bg-background"
       aria-busy={isPending}
-      data-url-inspector-expanded={Boolean(inspectedUrl && isUrlInspectorExpanded)}
     >
       <div className="flex shrink-0 flex-col gap-2 border-b border-border p-3">
         <PanelHeader counts={state?.counts} />
@@ -255,26 +274,29 @@ export function App() {
           }
           onChange={setStatusFilter}
         />
-      </div>
-
-      <div className="shrink-0 px-3 empty:hidden">
-        {feedback ? (
-          <InlineFeedback kind={feedback.kind} message={feedback.message} />
-        ) : null}
+        <DuplicateCleanupAction
+          targetCount={duplicateCleanupTargets.length}
+          retainedCount={retainedDuplicateCount}
+          onSelect={handleSelectDuplicateCleanupTargets}
+        />
       </div>
 
       <section
         ref={groupListRef}
-        className="flex min-h-0 flex-1 flex-col overflow-y-auto pt-2 pb-3"
+        className={cn(
+          "flex min-h-0 flex-1 flex-col overflow-y-auto",
+          getListBottomPadding(Boolean(selectedItems.length), Boolean(feedback))
+        )}
         aria-label="标签清单"
       >
         {error ? <ErrorView message={error} /> : null}
         {!state && !error ? <LoadingRows /> : null}
         {viewState?.emptyReason ? <EmptyState reason={viewState.emptyReason} /> : null}
-        {viewState?.visibleGroups.map((group) => (
+        {viewState?.visibleGroups.map((group, groupIndex) => (
           <GroupSection
             key={group.key}
             group={group}
+            accentIndex={groupIndex}
             currentItemKey={currentItemKey}
             selectedItemKeys={selectedItemKeys}
             onCollapsedChange={(groupKey, collapsed) => {
@@ -326,21 +348,20 @@ export function App() {
             onDeleteArchive={(normalizedUrl) => {
               void runCommand({ type: "archive:delete", normalizedUrl })
             }}
-            onPreviewUrlChange={(url) => {
-              if (!lockedUrl) {
-                setPreviewUrl(url)
-              }
-            }}
-            onInspectUrl={(url) => {
-              setLockedUrl(url)
-              setPreviewUrl(url)
-              setIsUrlInspectorExpanded(true)
-            }}
           />
         ))}
       </section>
 
-      <div className="fixed inset-x-0 bottom-0 z-20 flex flex-col">
+      <div className="fixed inset-x-0 bottom-0 z-40 flex flex-col">
+        <div className="px-3 pb-2 empty:hidden">
+          {feedback ? (
+            <InlineFeedback
+              kind={feedback.kind}
+              message={feedback.message}
+              className="mt-0 border-[color-mix(in_srgb,var(--border),transparent_26%)] bg-background/96 shadow-[0_4px_18px_color-mix(in_srgb,var(--foreground),transparent_90%)]"
+            />
+          ) : null}
+        </div>
         <BatchActionBar
           selectedItems={selectedItems}
           pendingPlan={pendingBatchPlan}
@@ -354,47 +375,6 @@ export function App() {
             setPendingBatchPlan(null)
           }}
         />
-
-        <aside
-          className="flex border-t border-[color-mix(in_srgb,var(--border),transparent_18%)] bg-[color-mix(in_srgb,var(--background),var(--card)_45%)] shadow-[0_-8px_18px_color-mix(in_srgb,var(--foreground),transparent_94%)]"
-          data-expanded={Boolean(inspectedUrl && isUrlInspectorExpanded)}
-          aria-label="完整 URL 预览"
-        >
-          <button
-            type="button"
-            className={cn(
-              "grid min-h-[34px] w-full grid-cols-[auto_minmax(0,1fr)] gap-2 border-0 bg-transparent px-3 py-[7px] text-left text-inherit",
-              inspectedUrl ? "cursor-pointer" : "cursor-default",
-              "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
-              inspectedUrl &&
-                isUrlInspectorExpanded &&
-                "max-h-28 min-h-[78px] grid-cols-[minmax(0,1fr)] gap-[3px] overflow-y-auto py-2 pb-[9px]"
-            )}
-            aria-expanded={isUrlInspectorExpanded}
-            disabled={!inspectedUrl}
-            onClick={() => {
-              if (inspectedUrl) {
-                setIsUrlInspectorExpanded((expanded) => !expanded)
-              }
-            }}
-          >
-            <span className="whitespace-nowrap text-[10.5px] leading-4 font-[560] text-muted-foreground">
-              {lockedUrl ? "已锁定 URL" : inspectedUrl ? "完整 URL" : "URL 预览"}
-            </span>
-            <span
-              className={cn(
-                "min-w-0 overflow-hidden font-mono text-[10.5px] leading-4 text-ellipsis whitespace-nowrap text-foreground",
-                !inspectedUrl && "font-sans text-muted-foreground",
-                inspectedUrl &&
-                  isUrlInspectorExpanded &&
-                  "overflow-visible text-clip whitespace-normal break-words [overflow-wrap:anywhere]"
-              )}
-              data-empty={!inspectedUrl}
-            >
-              {inspectedUrl ?? "点击行内 URL 查看完整地址"}
-            </span>
-          </button>
-        </aside>
       </div>
     </main>
   )
@@ -431,17 +411,17 @@ function getBatchSuccessMessage(plan: BatchActionPlan): string {
   }
 }
 
-function getMainBottomPadding(hasSelection: boolean, expandedInspector: boolean) {
-  if (hasSelection && expandedInspector) {
-    return "pb-52"
+function getListBottomPadding(hasSelection: boolean, hasFeedback: boolean) {
+  if (hasSelection && hasFeedback) {
+    return "pb-44"
   }
   if (hasSelection) {
-    return "pb-32"
+    return "pb-24"
   }
-  if (expandedInspector) {
-    return "pb-28"
+  if (hasFeedback) {
+    return "pb-24"
   }
-  return "pb-[42px]"
+  return "pb-3"
 }
 
 function getErrorMessage(caught: unknown): string {

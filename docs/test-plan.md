@@ -174,6 +174,20 @@
 - 状态过滤最多保留在当前侧边栏会话内，不跨重启。
 - 搜索词不持久化。
 
+### Side panel 推送刷新
+
+步骤：
+
+1. side panel 未连接时触发 Chrome tabs/windows 事件。
+2. 之后打开 side panel 并建立 runtime port。
+3. side panel 打开期间模拟 runtime port 断开并重连。
+
+预期：
+
+- service worker 保留 dirty 标记，port 连接后补发最新 `state:changed`。
+- side panel port 断开后会自动重连。
+- 重连后 side panel 重新请求 `state:get`，补齐断开期间可能漏掉的标签页变化。
+
 ### 空状态
 
 步骤：

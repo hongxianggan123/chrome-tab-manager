@@ -28,7 +28,6 @@
 | 分隔线 | `Separator` | 分隔顶部控制区、分组和行。 |
 | 状态徽标 | `Badge` | `当前`、`重复 x2`、`已归档`、`特殊 URL`。 |
 | 操作按钮 | `Button` | 归档、关闭、删除归档记录。跳转和恢复使用行点击作为主操作。 |
-| 完整 URL 查看 | 自定义 `UrlInspector` | 底部固定 inspector，替代 tooltip 或 hover card。 |
 | 空状态 | `Empty` | 没有标签、搜索无结果、没有归档项。 |
 | 加载状态 | `Skeleton` | 首次读取标签清单时的行骨架。 |
 | 错误提示 | `Alert` | API 读取失败、特殊 URL 不可归档等明确提示。 |
@@ -41,7 +40,7 @@
 - MVP 不使用 `Dialog`、`AlertDialog`。关闭和归档不做二次确认。
 - MVP 不使用 `Sheet`。Chrome Side Panel 本身已经是侧边栏容器。
 - MVP 不使用 `DropdownMenu`。每行操作数量少，直接展示更可发现。
-- MVP 不使用 `Tooltip` 承载完整 URL 或按钮说明。完整 URL 使用底部 inspector，按钮使用 `aria-label`。
+- MVP 不使用 `Tooltip` 承载完整 URL 或按钮说明。完整 URL 当前暂不在侧边栏展示，按钮使用 `aria-label`。
 
 ## 自定义部分
 
@@ -52,7 +51,6 @@
 - 悬浮选择槽：行和分组标题左缘的 overlay button，用于批量选择，不占默认布局宽度。
 - 窗口标识：例如 `W1`、`W2` 的紧凑元信息。
 - 当前页高亮：当前行背景、边框、`当前` 徽标和组标题提示。
-- URL inspector：固定在底部的完整 URL 查看区。
 
 自定义部分仍应使用 shadcn 组件拼装动作、徽标和状态，不手写已有组件能覆盖的交互。
 

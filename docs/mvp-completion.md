@@ -24,7 +24,7 @@ MVP 目标已经达成：
 | --- | --- | --- |
 | MV3 扩展骨架 | 完成 | `manifest`、side panel、service worker、Vite 构建已可用。 |
 | 只管理普通窗口 | 完成 | snapshot 读取普通窗口并排除隐身窗口。 |
-| 标签实例清单 | 完成 | side panel 展示当前打开标签实例，包含标题、紧凑 URL、窗口标识和状态徽标。 |
+| 标签实例清单 | 完成 | side panel 展示当前打开标签实例，包含标题、窗口标识和状态徽标。 |
 | 完整 host 分组 | 完成 | 默认按完整 hostname 分组，分组显示总数、打开、归档、重复计数。 |
 | 分组折叠持久化 | 完成 | 用户手动折叠状态写入 `chrome.storage.local`；搜索或过滤时临时展开。 |
 | 重复识别 | 完成 | 规范化 URL 保留 origin、path、query，忽略 fragment；重复项不合并行。 |
@@ -39,14 +39,14 @@ MVP 目标已经达成：
 | loading/empty/error | 完成 | 首次加载、空状态、读取失败和操作失败均有界面反馈。 |
 | 基础无障碍 | 完成 | 主要行和操作可聚焦，按钮有 `aria-label`，状态不只依赖颜色表达。 |
 | 当前页定位 | 完成 | 当前 active tab 高亮，且 active tab 变化时锚定到列表可视区域。 |
-| 完整 URL 查看 | 完成 | 通过底部固定 URL inspector 展示完整 URL，不再使用 tooltip 作为主交互。 |
+| 完整 URL 查看 | 暂缓 | 已从当前 UI 移除；后续单独设计查看入口，避免占用高密度列表空间。 |
 
 ## 已确认的 UI 调整
 
 以下是实现过程中根据实际体验调整后的 MVP 交互，后续文档和实现应以此为准：
 
 - 操作按钮不使用 tooltip 作为主要说明，依赖 `aria-label`、图标语义和行内布局。
-- 完整 URL 不通过 hover tooltip 展示，改为底部固定 URL inspector。点击行内 URL 后锁定 inspector，避免 hover 其他行导致内容跳变。
+- 完整 URL 不通过 hover tooltip 展示；底部 URL inspector 已移除，后续单独设计查看入口。
 - 行点击作为打开项跳转或归档项恢复的主操作，行内按钮只保留归档、关闭、删除等次要动作。
 - favicon 放在分组标题中展示，同 host 使用组级 icon；行内不重复展示 favicon。
 - 当前 active tab 需要高亮，并在列表中自动滚动到可视位置。
@@ -79,8 +79,7 @@ npm run build
 - 窄侧边栏宽度下，当前行高亮可见。
 - 点击非当前行后，demo active 状态迁移，当前行自动锚定到可视区域。
 - 顶部搜索和过滤区域不随页面整体滚走；滚动发生在标签列表内部。
-- 底部 URL inspector 固定在底部，完整 URL 可展开并换行。
-- 锁定 URL inspector 后，hover 其他行不会覆盖已锁定 URL。
+- 当前 UI 不展示完整 URL，列表以标题和状态元信息为主。
 
 真实 Chrome 扩展仍建议在每次构建后到 `chrome://extensions/` reload unpacked extension，再按 [测试计划](./test-plan.md) 做手动回归。
 

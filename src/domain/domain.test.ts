@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { batchPlanTargetCount, createBatchActionPlan } from "./batch"
+import { getDuplicateCleanupTargets } from "./duplicate-cleanup"
 import { filterGroups } from "./filters"
 import { buildGroups } from "./grouping"
 import {
@@ -181,6 +182,62 @@ describe("filterGroups", () => {
     const result = filterGroups(groups, "", "archived")
 
     expect(result.emptyReason).toBe("no-archived-tabs")
+  })
+})
+
+describe("duplicate cleanup selection", () => {
+  it("selects visible duplicate instances except the retained recent instance", () => {
+    const groups = buildGroups(mergeInventory(toTabInstances(snapshots), []))
+
+    const targets = getDuplicateCleanupTargets(groups)
+
+    expect(targets.map((item) => item.tabId)).toEqual([1])
+  })
+
+  it("keeps the current active instance when access time is unavailable", () => {
+    const groups = buildGroups(
+      mergeInventory(
+        toTabInstances([
+          {
+            tabId: 1,
+            windowId: 10,
+            windowLabel: "W1",
+            originalUrl: "https://example.com/a",
+            title: "First duplicate",
+            active: false,
+            index: 0,
+          },
+          {
+            tabId: 2,
+            windowId: 10,
+            windowLabel: "W1",
+            originalUrl: "https://example.com/a#two",
+            title: "Current duplicate",
+            active: true,
+            index: 1,
+          },
+        ]),
+        []
+      )
+    )
+
+    const targets = getDuplicateCleanupTargets(groups)
+
+    expect(targets.map((item) => item.tabId)).toEqual([1])
+  })
+
+  it("does not select a duplicate row when its duplicate group is not visible", () => {
+    const groups = buildGroups(mergeInventory(toTabInstances(snapshots), []))
+    const visibleGroups = [
+      {
+        ...groups[0],
+        items: [groups[0].items[0]],
+      },
+    ]
+
+    const targets = getDuplicateCleanupTargets(visibleGroups)
+
+    expect(targets).toEqual([])
   })
 })
 

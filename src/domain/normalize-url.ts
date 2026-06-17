@@ -18,14 +18,3 @@ export function hostnameFromUrl(originalUrl: string): Hostname {
     return "unknown"
   }
 }
-
-export function compactUrl(originalUrl: string): string {
-  try {
-    const url = new URL(originalUrl)
-    const host = url.hostname || url.protocol.replace(":", "")
-    return `${host}${url.pathname}${url.search}`
-  } catch {
-    return originalUrl
-  }
-}
-
