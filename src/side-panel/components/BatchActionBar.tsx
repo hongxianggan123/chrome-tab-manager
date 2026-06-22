@@ -39,12 +39,6 @@ export function BatchActionBar({
   onConfirmAction,
   onClearSelection,
 }: BatchActionBarProps) {
-  if (selectedItems.length === 0) {
-    return null
-  }
-
-  const summary = summarizeBatchSelection(selectedItems)
-
   if (pendingPlan) {
     const targetCount = batchPlanTargetCount(pendingPlan)
 
@@ -107,6 +101,12 @@ export function BatchActionBar({
       </section>
     )
   }
+
+  if (selectedItems.length === 0) {
+    return null
+  }
+
+  const summary = summarizeBatchSelection(selectedItems)
 
   return (
     <section

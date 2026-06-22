@@ -144,7 +144,6 @@ export function App() {
       )
       return next.size === current.size ? current : next
     })
-    setPendingBatchPlan(null)
   }, [visibleItemsByKey])
 
   useEffect(() => {
