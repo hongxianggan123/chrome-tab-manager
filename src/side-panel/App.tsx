@@ -46,6 +46,10 @@ export function App() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [activeView, setActiveView] = useState<"list" | "settings">("list")
   const [promptSecondsRemaining, setPromptSecondsRemaining] = useState(30)
+  const [pendingDuplicateFocus, setPendingDuplicateFocus] = useState<{
+    promptTabId: number
+    normalizedUrl: string
+  } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<{
     kind: "error" | "success"
@@ -181,6 +185,30 @@ export function App() {
 
     return () => window.cancelAnimationFrame(frameId)
   }, [currentItemKey])
+
+  useEffect(() => {
+    if (!pendingDuplicateFocus || statusFilter !== "duplicate") {
+      return
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      const listElement = groupListRef.current
+      const promptRow = listElement?.querySelector<HTMLElement>(
+        `[data-tab-id="${pendingDuplicateFocus.promptTabId}"]`
+      )
+      const fallbackRow = listElement?.querySelector<HTMLElement>(
+        `[data-normalized-url="${CSS.escape(pendingDuplicateFocus.normalizedUrl)}"]`
+      )
+
+      ;(promptRow ?? fallbackRow)?.scrollIntoView({
+        block: "center",
+        inline: "nearest",
+      })
+      setPendingDuplicateFocus(null)
+    })
+
+    return () => window.cancelAnimationFrame(frameId)
+  }, [pendingDuplicateFocus, state, statusFilter])
 
   useEffect(() => {
     if (!feedback) {
@@ -343,6 +371,10 @@ export function App() {
           onViewDuplicates={() => {
             setQuery("")
             setStatusFilter("duplicate")
+            setPendingDuplicateFocus({
+              promptTabId: state.duplicatePrompt!.newTabId,
+              normalizedUrl: state.duplicatePrompt!.normalizedUrl,
+            })
             void runCommand({
               type: "duplicatePrompt:viewDuplicates",
               promptTabId: state.duplicatePrompt!.newTabId,

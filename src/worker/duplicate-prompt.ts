@@ -57,3 +57,32 @@ export async function keepDuplicatePrompt(promptTabId: number) {
 export async function dismissDuplicatePrompt(promptTabId: number) {
   await keepDuplicatePrompt(promptTabId)
 }
+
+export async function jumpToDuplicatePromptTarget({
+  promptTabId,
+  targetTabId,
+  targetWindowId,
+}: {
+  promptTabId: number
+  targetTabId: number
+  targetWindowId: number
+}) {
+  await chrome.windows.update(targetWindowId, { focused: true })
+  await chrome.tabs.update(targetTabId, { active: true })
+
+  try {
+    await chrome.tabs.remove(promptTabId)
+  } catch {
+    // The new duplicate tab may already be closed.
+  }
+
+  await markDuplicatePromptHandled(promptTabId)
+  await clearDuplicatePromptSession()
+  await clearDuplicatePromptBadge()
+}
+
+export async function viewDuplicatePromptInstances(promptTabId: number) {
+  await markDuplicatePromptHandled(promptTabId)
+  await clearDuplicatePromptSession()
+  await clearDuplicatePromptBadge()
+}

@@ -43,6 +43,8 @@ export function InventoryRow({
       )}
       data-status={getStatus(item)}
       data-current={isCurrent}
+      data-tab-id={item.kind === "active" ? item.tabId : undefined}
+      data-normalized-url={item.normalizedUrl}
       aria-selected={selected}
       aria-current={isCurrent ? "page" : undefined}
       onClick={() => onJump(item)}

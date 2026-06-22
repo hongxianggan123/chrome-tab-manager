@@ -16,6 +16,13 @@ describe("worker duplicate prompt handling", () => {
         setBadgeBackgroundColor: vi.fn(),
         setTitle: vi.fn(),
       },
+      tabs: {
+        update: vi.fn(),
+        remove: vi.fn(),
+      },
+      windows: {
+        update: vi.fn(),
+      },
     } as unknown as typeof chrome
   })
 
@@ -56,6 +63,29 @@ describe("worker duplicate prompt handling", () => {
       })
     )
     expect(chrome.action.setBadgeText).toHaveBeenCalledWith({ text: "1" })
+  })
+
+  it("jump action activates target and removes the prompt tab", async () => {
+    const chromeMock = globalThis.chrome as unknown as {
+      tabs: {
+        update: ReturnType<typeof vi.fn>
+        remove: ReturnType<typeof vi.fn>
+      }
+      windows: { update: ReturnType<typeof vi.fn> }
+    }
+    const { jumpToDuplicatePromptTarget } = await import("./duplicate-prompt")
+
+    await jumpToDuplicatePromptTarget({
+      promptTabId: 7,
+      targetTabId: 3,
+      targetWindowId: 1,
+    })
+
+    expect(chromeMock.windows.update).toHaveBeenCalledWith(1, {
+      focused: true,
+    })
+    expect(chromeMock.tabs.update).toHaveBeenCalledWith(3, { active: true })
+    expect(chromeMock.tabs.remove).toHaveBeenCalledWith(7)
   })
 })
 

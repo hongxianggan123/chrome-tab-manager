@@ -7,7 +7,9 @@ import type {
 import {
   dismissDuplicatePrompt,
   handlePotentialDuplicatePrompt,
+  jumpToDuplicatePromptTarget,
   keepDuplicatePrompt,
+  viewDuplicatePromptInstances,
 } from "@/worker/duplicate-prompt"
 import {
   archiveTab,
@@ -111,7 +113,10 @@ async function handleMessage(message: WorkerRequest): Promise<WorkerResponse> {
     case "duplicatePrompt:setDisplayMode":
       return updateDuplicatePromptDisplayMode(message.displayMode)
     case "duplicatePrompt:jump":
+      await jumpToDuplicatePromptTarget(message)
+      return { ok: true, state: await buildDomainState() }
     case "duplicatePrompt:viewDuplicates":
+      await viewDuplicatePromptInstances(message.promptTabId)
       return { ok: true, state: await buildDomainState() }
     case "duplicatePrompt:keep":
       await keepDuplicatePrompt(message.promptTabId)
