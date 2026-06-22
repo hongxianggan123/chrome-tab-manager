@@ -24,6 +24,7 @@ import type {
 import { sendWorkerMessage } from "./api"
 import { BatchActionBar } from "./components/BatchActionBar"
 import { DuplicateCleanupAction } from "./components/DuplicateCleanupAction"
+import { DuplicatePromptBanner } from "./components/DuplicatePromptBanner"
 import { GroupSection } from "./components/GroupSection"
 import { PanelHeader } from "./components/PanelHeader"
 import { SearchBox } from "./components/SearchBox"
@@ -44,6 +45,7 @@ export function App() {
   const [query, setQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [activeView, setActiveView] = useState<"list" | "settings">("list")
+  const [promptSecondsRemaining, setPromptSecondsRemaining] = useState(30)
   const [error, setError] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<{
     kind: "error" | "success"
@@ -204,6 +206,36 @@ export function App() {
     }
   }, [])
 
+  useEffect(() => {
+    const prompt = state?.duplicatePrompt
+    if (!prompt) {
+      setPromptSecondsRemaining(30)
+      return
+    }
+
+    setPromptSecondsRemaining(30)
+    const startedAt = Date.now()
+    const intervalId = window.setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startedAt) / 1000)
+      const remaining = Math.max(0, 30 - elapsed)
+      setPromptSecondsRemaining(remaining)
+
+      if (remaining === 0) {
+        window.clearInterval(intervalId)
+        void runCommand({
+          type: "duplicatePrompt:dismiss",
+          promptTabId: prompt.newTabId,
+        })
+      }
+    }, 250)
+
+    return () => window.clearInterval(intervalId)
+  }, [
+    runCommand,
+    state?.duplicatePrompt?.createdAt,
+    state?.duplicatePrompt?.newTabId,
+  ])
+
   const runBatchCommand = useCallback(
     async (plan: BatchActionPlan) => {
       const targetCount = batchPlanTargetCount(plan)
@@ -289,6 +321,36 @@ export function App() {
           </>
         ) : null}
       </div>
+
+      {state?.duplicatePrompt && activeView === "list" ? (
+        <DuplicatePromptBanner
+          prompt={state.duplicatePrompt}
+          secondsRemaining={promptSecondsRemaining}
+          onJump={() => {
+            void runCommand({
+              type: "duplicatePrompt:jump",
+              promptTabId: state.duplicatePrompt!.newTabId,
+              targetTabId: state.duplicatePrompt!.defaultTargetTabId,
+              targetWindowId: state.duplicatePrompt!.defaultTargetWindowId,
+            })
+          }}
+          onKeep={() => {
+            void runCommand({
+              type: "duplicatePrompt:keep",
+              promptTabId: state.duplicatePrompt!.newTabId,
+            })
+          }}
+          onViewDuplicates={() => {
+            setQuery("")
+            setStatusFilter("duplicate")
+            void runCommand({
+              type: "duplicatePrompt:viewDuplicates",
+              promptTabId: state.duplicatePrompt!.newTabId,
+              normalizedUrl: state.duplicatePrompt!.normalizedUrl,
+            })
+          }}
+        />
+      ) : null}
 
       {activeView === "settings" && state ? (
         <SettingsPanel
