@@ -30,6 +30,10 @@ const state: DomainStatePayload = {
     archived: 0,
     duplicate: 0,
   },
+  duplicatePromptSettings: {
+    displayMode: "sidePanel",
+    updatedAt: "2026-06-18T00:00:00.000Z",
+  },
 }
 
 vi.mock("@/storage/local-storage", () => ({
@@ -49,6 +53,7 @@ vi.mock("@/worker/mutations", () => ({
   deleteArchives: vi.fn(),
   jumpToTab: vi.fn(),
   restoreArchive: vi.fn(),
+  updateDuplicatePromptDisplayMode: vi.fn(),
   updateGroupCollapsed: vi.fn(),
 }))
 
@@ -98,6 +103,20 @@ describe("service worker push refresh", () => {
       type: "state:changed",
       state,
     })
+  })
+
+  it("routes duplicate prompt settings updates", async () => {
+    const serviceWorker = await import("./service-worker")
+    const mutations = await import("@/worker/mutations")
+
+    await serviceWorker.handleWorkerMessageForTest({
+      type: "duplicatePrompt:setDisplayMode",
+      displayMode: "pageOverlay",
+    })
+
+    expect(mutations.updateDuplicatePromptDisplayMode).toHaveBeenCalledWith(
+      "pageOverlay"
+    )
   })
 })
 

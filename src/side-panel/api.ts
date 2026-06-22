@@ -194,6 +194,10 @@ function demoArchiveItem(
 function createDemoState(): DomainStatePayload {
   return {
     generatedAt: new Date().toISOString(),
+    duplicatePromptSettings: {
+      displayMode: "sidePanel",
+      updatedAt: new Date().toISOString(),
+    },
     counts: {
       total: 5,
       active: 4,

@@ -13,6 +13,7 @@ import {
   deleteArchives,
   jumpToTab,
   restoreArchive,
+  updateDuplicatePromptDisplayMode,
   updateGroupCollapsed,
 } from "@/worker/mutations"
 import { buildDomainState } from "@/worker/refresh"
@@ -92,6 +93,13 @@ async function handleMessage(message: WorkerRequest): Promise<WorkerResponse> {
       return deleteArchives(message.normalizedUrls)
     case "group:setCollapsed":
       return updateGroupCollapsed(message.groupKey, message.collapsed)
+    case "duplicatePrompt:setDisplayMode":
+      return updateDuplicatePromptDisplayMode(message.displayMode)
+    case "duplicatePrompt:jump":
+    case "duplicatePrompt:keep":
+    case "duplicatePrompt:viewDuplicates":
+    case "duplicatePrompt:dismiss":
+      return { ok: true, state: await buildDomainState() }
   }
 }
 
@@ -103,6 +111,8 @@ function markDirty() {
 export function isRuntimeDirtyForTest() {
   return runtimeDirty
 }
+
+export const handleWorkerMessageForTest = handleMessage
 
 function schedulePushRefresh() {
   if (sidePanelPorts.size === 0) {

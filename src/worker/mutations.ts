@@ -1,10 +1,14 @@
 import { normalizeUrl } from "@/domain/normalize-url"
 import { isSpecialUrl } from "@/domain/special-url"
-import type { ArchivedTabRecord } from "@/domain/types"
+import type {
+  ArchivedTabRecord,
+  DuplicatePromptDisplayMode,
+} from "@/domain/types"
 import {
   deleteArchivedRecord,
   readStorageRoot,
   setGroupCollapsed,
+  updateDuplicatePromptSettings,
   upsertArchivedRecord,
   writeStorageRoot,
 } from "@/storage/local-storage"
@@ -258,6 +262,17 @@ export async function updateGroupCollapsed(
     return { ok: true, state: await buildDomainState() }
   } catch {
     return failure("storage_failed", "无法保存分组折叠状态。")
+  }
+}
+
+export async function updateDuplicatePromptDisplayMode(
+  displayMode: DuplicatePromptDisplayMode
+): Promise<MutationResult> {
+  try {
+    await updateDuplicatePromptSettings(displayMode)
+    return { ok: true, state: await buildDomainState() }
+  } catch {
+    return failure("storage_failed", "无法保存重复提示展示方式。")
   }
 }
 
