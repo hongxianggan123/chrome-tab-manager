@@ -28,6 +28,19 @@ export async function handlePotentialDuplicatePrompt(newTabId: number) {
     return
   }
 
+  if (state.duplicatePromptSettings.displayMode === "pageOverlay") {
+    const overlayPrompt: DuplicatePromptRuntime = {
+      ...prompt,
+      displaySurface: "pageOverlay",
+    }
+    const shown = await tryShowPageOverlay(overlayPrompt)
+    if (shown) {
+      await writeDuplicatePrompt(overlayPrompt)
+      await clearDuplicatePromptBadge()
+      return
+    }
+  }
+
   const nextPrompt: DuplicatePromptRuntime = {
     ...prompt,
     displaySurface: "pending",
@@ -85,4 +98,27 @@ export async function viewDuplicatePromptInstances(promptTabId: number) {
   await markDuplicatePromptHandled(promptTabId)
   await clearDuplicatePromptSession()
   await clearDuplicatePromptBadge()
+}
+
+async function tryShowPageOverlay(prompt: DuplicatePromptRuntime) {
+  try {
+    const hasPermission = await chrome.permissions.contains({
+      origins: ["<all_urls>"],
+    })
+    if (!hasPermission) {
+      return false
+    }
+
+    await chrome.scripting.executeScript({
+      target: { tabId: prompt.newTabId },
+      files: ["duplicate-prompt-overlay.js"],
+    })
+    await chrome.tabs.sendMessage(prompt.newTabId, {
+      type: "duplicatePromptOverlay:show",
+      prompt,
+    })
+    return true
+  } catch {
+    return false
+  }
 }

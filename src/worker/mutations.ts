@@ -269,6 +269,20 @@ export async function updateDuplicatePromptDisplayMode(
   displayMode: DuplicatePromptDisplayMode
 ): Promise<MutationResult> {
   try {
+    if (displayMode === "pageOverlay") {
+      const granted = await chrome.permissions.request({
+        origins: ["<all_urls>"],
+      })
+
+      if (!granted) {
+        await updateDuplicatePromptSettings("sidePanel")
+        return failure(
+          "chrome_api_failed",
+          "页面浮层需要授权。已继续使用侧边栏提示。"
+        )
+      }
+    }
+
     await updateDuplicatePromptSettings(displayMode)
     return { ok: true, state: await buildDomainState() }
   } catch {

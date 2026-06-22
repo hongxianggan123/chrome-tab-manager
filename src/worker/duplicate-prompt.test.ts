@@ -16,9 +16,16 @@ describe("worker duplicate prompt handling", () => {
         setBadgeBackgroundColor: vi.fn(),
         setTitle: vi.fn(),
       },
+      permissions: {
+        contains: vi.fn(),
+      },
+      scripting: {
+        executeScript: vi.fn(),
+      },
       tabs: {
         update: vi.fn(),
         remove: vi.fn(),
+        sendMessage: vi.fn(),
       },
       windows: {
         update: vi.fn(),
@@ -63,6 +70,55 @@ describe("worker duplicate prompt handling", () => {
       })
     )
     expect(chrome.action.setBadgeText).toHaveBeenCalledWith({ text: "1" })
+  })
+
+  it("injects the page overlay when overlay mode has host permission", async () => {
+    const chromeMock = globalThis.chrome as unknown as {
+      action: { setBadgeText: ReturnType<typeof vi.fn> }
+      permissions: { contains: ReturnType<typeof vi.fn> }
+      scripting: { executeScript: ReturnType<typeof vi.fn> }
+      tabs: { sendMessage: ReturnType<typeof vi.fn> }
+    }
+    chromeMock.permissions.contains.mockResolvedValue(true)
+    vi.mocked(session.readDuplicatePromptSession).mockResolvedValue({
+      handledDuplicatePromptTabIds: [],
+    })
+    vi.mocked(refresh.buildDomainState).mockResolvedValue({
+      generatedAt: "2026-06-23T00:00:00.000Z",
+      groups: [
+        {
+          key: "example.com",
+          label: "example.com",
+          hostname: "example.com",
+          collapsed: false,
+          counts: { total: 2, active: 2, archived: 0, duplicate: 2 },
+          items: [
+            activeTab({ tabId: 1, lastAccessed: 20 }),
+            activeTab({ tabId: 123, lastAccessed: 10 }),
+          ],
+        },
+      ],
+      counts: { total: 2, active: 2, archived: 0, duplicate: 2 },
+      duplicatePromptSettings: {
+        displayMode: "pageOverlay",
+        updatedAt: "2026-06-23T00:00:00.000Z",
+      },
+    })
+
+    await handlePotentialDuplicatePrompt(123)
+
+    expect(chromeMock.scripting.executeScript).toHaveBeenCalledWith({
+      target: { tabId: 123 },
+      files: ["duplicate-prompt-overlay.js"],
+    })
+    expect(chromeMock.tabs.sendMessage).toHaveBeenCalledWith(
+      123,
+      expect.objectContaining({ type: "duplicatePromptOverlay:show" })
+    )
+    expect(session.writeDuplicatePrompt).toHaveBeenCalledWith(
+      expect.objectContaining({ displaySurface: "pageOverlay" })
+    )
+    expect(chromeMock.action.setBadgeText).toHaveBeenCalledWith({ text: "" })
   })
 
   it("jump action activates target and removes the prompt tab", async () => {
