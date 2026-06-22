@@ -23,6 +23,9 @@ Chrome snapshot
 Storage snapshot
         │
         ▼
+Session snapshot
+        │
+        ▼
 Domain state
         │
         ▼
@@ -53,8 +56,26 @@ type StorageSnapshot = {
   version: 1
   archivedTabs: Record<NormalizedUrl, ArchivedTabRecord>
   groupViewState: Record<GroupKey, GroupViewState>
+  duplicatePromptSettings?: DuplicatePromptSettings
 }
 ```
+
+### Session snapshot
+
+来自 `chrome.storage.session` 的当前浏览器会话状态。
+
+```ts
+type SessionSnapshot = {
+  duplicatePrompt?: DuplicatePromptRuntime
+  handledDuplicatePromptTabIds: number[]
+}
+```
+
+说明：
+
+- 会话状态用于抵抗 MV3 service worker 挂起后的重复提示丢失或重复弹出。
+- 会话状态不跨浏览器重启保存。
+- 不把待处理重复提示或已处理 tabId 写入 `chrome.storage.local`。
 
 ### Domain state
 
@@ -67,6 +88,8 @@ type DomainState = {
   tabRecords: Record<NormalizedUrl, TabRecordRuntime>
   duplicateGroups: Record<NormalizedUrl, DuplicateGroupRuntime>
   groups: GroupRuntime[]
+  duplicatePrompt?: DuplicatePromptRuntime
+  duplicatePromptSettings: DuplicatePromptSettings
 }
 ```
 
@@ -82,6 +105,7 @@ type DerivedViewState = {
   visibleGroups: VisibleGroup[]
   emptyReason?: EmptyReason
   feedback?: FeedbackMessage[]
+  duplicatePrompt?: DuplicatePromptRuntime
 }
 ```
 
@@ -211,6 +235,43 @@ type DuplicateGroupRuntime = {
 - 只包含打开中的标签实例。
 - `count > 1` 才是有效重复组。
 - 归档项不参与重复组。
+
+### DuplicatePromptSettings
+
+```ts
+type DuplicatePromptSettings = {
+  displayMode: "sidePanel" | "pageOverlay"
+  updatedAt: string
+}
+```
+
+规则：
+
+- 默认值为 `sidePanel`。
+- `pageOverlay` 只表达用户偏好；是否可展示还取决于用户授权和当前页面是否可注入。
+
+### DuplicatePromptRuntime
+
+```ts
+type DuplicatePromptRuntime = {
+  newTabId: number
+  normalizedUrl: NormalizedUrl
+  originalUrl: string
+  title: string
+  hostname: Hostname
+  defaultTargetTabId: number
+  defaultTargetWindowId: number
+  createdAt: string
+  displaySurface: "sidePanel" | "pageOverlay" | "pending"
+}
+```
+
+规则：
+
+- 同一时间最多保留一条最近重复提示。
+- 运行时提示写入 `chrome.storage.session`，不跨浏览器重启持久化。
+- 页面浮层挂载状态不进入长期 storage。
+- `displaySurface: "pending"` 表示侧边栏未打开且页面浮层不可用，只通过扩展图标轻提醒等待用户打开侧边栏。
 
 ### GroupRuntime
 
