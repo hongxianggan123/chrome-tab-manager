@@ -5,6 +5,11 @@ import type {
   WorkerResponse,
 } from "@/worker/messages"
 import {
+  dismissDuplicatePrompt,
+  handlePotentialDuplicatePrompt,
+  keepDuplicatePrompt,
+} from "@/worker/duplicate-prompt"
+import {
   archiveTab,
   archiveTabs,
   closeTab,
@@ -57,8 +62,18 @@ chrome.runtime.onConnect.addListener((port) => {
   })
 })
 
-chrome.tabs.onCreated.addListener(markDirty)
-chrome.tabs.onUpdated.addListener(markDirty)
+chrome.tabs.onCreated.addListener((tab) => {
+  markDirty()
+  if (typeof tab.id === "number") {
+    void handlePotentialDuplicatePrompt(tab.id)
+  }
+})
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  markDirty()
+  if (changeInfo.status === "complete") {
+    void handlePotentialDuplicatePrompt(tabId)
+  }
+})
 chrome.tabs.onRemoved.addListener(markDirty)
 chrome.tabs.onActivated.addListener(markDirty)
 chrome.tabs.onAttached.addListener(markDirty)
@@ -96,9 +111,13 @@ async function handleMessage(message: WorkerRequest): Promise<WorkerResponse> {
     case "duplicatePrompt:setDisplayMode":
       return updateDuplicatePromptDisplayMode(message.displayMode)
     case "duplicatePrompt:jump":
-    case "duplicatePrompt:keep":
     case "duplicatePrompt:viewDuplicates":
+      return { ok: true, state: await buildDomainState() }
+    case "duplicatePrompt:keep":
+      await keepDuplicatePrompt(message.promptTabId)
+      return { ok: true, state: await buildDomainState() }
     case "duplicatePrompt:dismiss":
+      await dismissDuplicatePrompt(message.promptTabId)
       return { ok: true, state: await buildDomainState() }
   }
 }

@@ -8,8 +8,8 @@ const listeners = {
   installed: [] as Listener[],
   message: [] as Listener[],
   connect: [] as Listener<[chrome.runtime.Port]>[],
-  tabCreated: [] as Listener[],
-  tabUpdated: [] as Listener[],
+  tabCreated: [] as Listener<[chrome.tabs.Tab]>[],
+  tabUpdated: [] as Listener<[number, chrome.tabs.TabChangeInfo]>[],
   tabRemoved: [] as Listener[],
   tabActivated: [] as Listener[],
   tabAttached: [] as Listener[],
@@ -57,6 +57,12 @@ vi.mock("@/worker/mutations", () => ({
   updateGroupCollapsed: vi.fn(),
 }))
 
+vi.mock("@/worker/duplicate-prompt", () => ({
+  dismissDuplicatePrompt: vi.fn(),
+  handlePotentialDuplicatePrompt: vi.fn(),
+  keepDuplicatePrompt: vi.fn(),
+}))
+
 describe("service worker push refresh", () => {
   beforeEach(() => {
     vi.resetModules()
@@ -72,7 +78,7 @@ describe("service worker push refresh", () => {
   it("pushes latest state when a side panel connects after runtime became dirty", async () => {
     await import("./service-worker")
 
-    listeners.tabCreated[0]()
+    listeners.tabCreated[0](tabEvent({ id: 1 }))
 
     const postMessage = vi.fn()
     listeners.connect[0](createPortMock({ name: "side-panel", postMessage }))
@@ -91,8 +97,8 @@ describe("service worker push refresh", () => {
     const postMessage = vi.fn()
     listeners.connect[0](createPortMock({ name: "side-panel", postMessage }))
 
-    listeners.tabCreated[0]()
-    listeners.tabUpdated[0]()
+    listeners.tabCreated[0](tabEvent({ id: 1 }))
+    listeners.tabUpdated[0](1, {})
 
     await vi.advanceTimersByTimeAsync(149)
     expect(postMessage).not.toHaveBeenCalled()
@@ -166,6 +172,19 @@ function createPortMock({
     postMessage,
     onDisconnect: event([]),
   } as unknown as chrome.runtime.Port
+}
+
+function tabEvent(overrides: Partial<chrome.tabs.Tab>): chrome.tabs.Tab {
+  return {
+    active: false,
+    highlighted: false,
+    incognito: false,
+    index: 0,
+    pinned: false,
+    selected: false,
+    windowId: 1,
+    ...overrides,
+  } as chrome.tabs.Tab
 }
 
 function event<T extends unknown[]>(listenerList: Listener<T>[]) {
