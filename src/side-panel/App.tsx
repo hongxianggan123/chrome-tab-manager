@@ -34,6 +34,7 @@ import {
   LoadingRows,
 } from "./components/StateViews"
 import { createSidePanelPortSession } from "./runtime-port"
+import { SettingsPanel } from "./settings/SettingsPanel"
 import { StatusFilter as StatusFilterControl } from "./components/StatusFilter"
 
 export function App() {
@@ -42,6 +43,7 @@ export function App() {
   const [state, setState] = useState<DomainStatePayload | null>(null)
   const [query, setQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
+  const [activeView, setActiveView] = useState<"list" | "settings">("list")
   const [error, setError] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<{
     kind: "error" | "success"
@@ -260,97 +262,122 @@ export function App() {
       aria-busy={isPending}
     >
       <div className="flex shrink-0 flex-col gap-2 border-b border-border p-3">
-        <PanelHeader counts={state?.counts} />
-        <SearchBox value={query} onChange={setQuery} />
-        <StatusFilterControl
-          value={statusFilter}
-          counts={
-            viewState?.totalCounts ?? {
-              total: 0,
-              active: 0,
-              archived: 0,
-              duplicate: 0,
-            }
-          }
-          onChange={setStatusFilter}
+        <PanelHeader
+          counts={state?.counts}
+          onOpenSettings={() => setActiveView("settings")}
         />
-        <DuplicateCleanupAction
-          targetCount={duplicateCleanupTargets.length}
-          retainedCount={retainedDuplicateCount}
-          onSelect={handleSelectDuplicateCleanupTargets}
-        />
+        {activeView === "list" ? (
+          <>
+            <SearchBox value={query} onChange={setQuery} />
+            <StatusFilterControl
+              value={statusFilter}
+              counts={
+                viewState?.totalCounts ?? {
+                  total: 0,
+                  active: 0,
+                  archived: 0,
+                  duplicate: 0,
+                }
+              }
+              onChange={setStatusFilter}
+            />
+            <DuplicateCleanupAction
+              targetCount={duplicateCleanupTargets.length}
+              retainedCount={retainedDuplicateCount}
+              onSelect={handleSelectDuplicateCleanupTargets}
+            />
+          </>
+        ) : null}
       </div>
 
-      <section
-        ref={groupListRef}
-        className={cn(
-          "flex min-h-0 flex-1 flex-col overflow-y-auto",
-          getListBottomPadding(Boolean(selectedItems.length), Boolean(feedback))
-        )}
-        aria-label="标签清单"
-      >
-        {error ? <ErrorView message={error} /> : null}
-        {!state && !error ? <LoadingRows /> : null}
-        {viewState?.emptyReason ? <EmptyState reason={viewState.emptyReason} /> : null}
-        {viewState?.visibleGroups.map((group, groupIndex) => (
-          <GroupSection
-            key={group.key}
-            group={group}
-            accentIndex={groupIndex}
-            currentItemKey={currentItemKey}
-            selectedItemKeys={selectedItemKeys}
-            onCollapsedChange={(groupKey, collapsed) => {
-              if (query.trim() || statusFilter !== "all") {
-                return
-              }
+      {activeView === "settings" && state ? (
+        <SettingsPanel
+          displayMode={state.duplicatePromptSettings.displayMode}
+          onDisplayModeChange={(displayMode) => {
+            void runCommand({
+              type: "duplicatePrompt:setDisplayMode",
+              displayMode,
+            })
+          }}
+          onBack={() => setActiveView("list")}
+        />
+      ) : (
+        <section
+          ref={groupListRef}
+          className={cn(
+            "flex min-h-0 flex-1 flex-col overflow-y-auto",
+            getListBottomPadding(
+              Boolean(selectedItems.length),
+              Boolean(feedback)
+            )
+          )}
+          aria-label="标签清单"
+        >
+          {error ? <ErrorView message={error} /> : null}
+          {!state && !error ? <LoadingRows /> : null}
+          {viewState?.emptyReason ? (
+            <EmptyState reason={viewState.emptyReason} />
+          ) : null}
+          {viewState?.visibleGroups.map((group, groupIndex) => (
+            <GroupSection
+              key={group.key}
+              group={group}
+              accentIndex={groupIndex}
+              currentItemKey={currentItemKey}
+              selectedItemKeys={selectedItemKeys}
+              onCollapsedChange={(groupKey, collapsed) => {
+                if (query.trim() || statusFilter !== "all") {
+                  return
+                }
 
-              void runCommand({
-                type: "group:setCollapsed",
-                groupKey,
-                collapsed,
-              })
-            }}
-            onSelectGroupItems={(items, selected) => {
-              setSelectedItemKeys((current) => {
-                const next = new Set(current)
-                for (const item of items) {
+                void runCommand({
+                  type: "group:setCollapsed",
+                  groupKey,
+                  collapsed,
+                })
+              }}
+              onSelectGroupItems={(items, selected) => {
+                setSelectedItemKeys((current) => {
+                  const next = new Set(current)
+                  for (const item of items) {
+                    const key = inventoryItemKey(item)
+                    if (selected) {
+                      next.add(key)
+                    } else {
+                      next.delete(key)
+                    }
+                  }
+                  return next
+                })
+                setPendingBatchPlan(null)
+              }}
+              onSelectItem={(item, selected) => {
+                setSelectedItemKeys((current) => {
+                  const next = new Set(current)
                   const key = inventoryItemKey(item)
                   if (selected) {
                     next.add(key)
                   } else {
                     next.delete(key)
                   }
-                }
-                return next
-              })
-              setPendingBatchPlan(null)
-            }}
-            onSelectItem={(item, selected) => {
-              setSelectedItemKeys((current) => {
-                const next = new Set(current)
-                const key = inventoryItemKey(item)
-                if (selected) {
-                  next.add(key)
-                } else {
-                  next.delete(key)
-                }
-                return next
-              })
-              setPendingBatchPlan(null)
-            }}
-            onJump={handleJump}
-            onArchive={(tabId) => {
-              void runCommand({ type: "tab:archive", tabId })
-            }}
-            onClose={(tabId) => {
-              void runCommand({ type: "tab:close", tabId })
-            }}
-            onDeleteArchive={(normalizedUrl) => {
-              void runCommand({ type: "archive:delete", normalizedUrl })
-            }}
-          />
-        ))}
-      </section>
+                  return next
+                })
+                setPendingBatchPlan(null)
+              }}
+              onJump={handleJump}
+              onArchive={(tabId) => {
+                void runCommand({ type: "tab:archive", tabId })
+              }}
+              onClose={(tabId) => {
+                void runCommand({ type: "tab:close", tabId })
+              }}
+              onDeleteArchive={(normalizedUrl) => {
+                void runCommand({ type: "archive:delete", normalizedUrl })
+              }}
+            />
+          ))}
+        </section>
+      )}
 
       <div className="fixed inset-x-0 bottom-0 z-40 flex flex-col">
         <div className="px-3 pb-2 empty:hidden">
@@ -362,19 +389,21 @@ export function App() {
             />
           ) : null}
         </div>
-        <BatchActionBar
-          selectedItems={selectedItems}
-          pendingPlan={pendingBatchPlan}
-          onPrepareAction={setPendingBatchPlan}
-          onCancelAction={() => setPendingBatchPlan(null)}
-          onConfirmAction={(plan) => {
-            void runBatchCommand(plan)
-          }}
-          onClearSelection={() => {
-            setSelectedItemKeys(new Set())
-            setPendingBatchPlan(null)
-          }}
-        />
+        {activeView === "list" ? (
+          <BatchActionBar
+            selectedItems={selectedItems}
+            pendingPlan={pendingBatchPlan}
+            onPrepareAction={setPendingBatchPlan}
+            onCancelAction={() => setPendingBatchPlan(null)}
+            onConfirmAction={(plan) => {
+              void runBatchCommand(plan)
+            }}
+            onClearSelection={() => {
+              setSelectedItemKeys(new Set())
+              setPendingBatchPlan(null)
+            }}
+          />
+        ) : null}
       </div>
     </main>
   )

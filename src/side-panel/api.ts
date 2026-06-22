@@ -117,6 +117,16 @@ function handleDemoMessage(message: WorkerRequest): DomainStatePayload {
     )
   }
 
+  if (message.type === "duplicatePrompt:setDisplayMode") {
+    demoState = {
+      ...demoState,
+      duplicatePromptSettings: {
+        displayMode: message.displayMode,
+        updatedAt: new Date().toISOString(),
+      },
+    }
+  }
+
   return structuredClone(demoState)
 }
 
