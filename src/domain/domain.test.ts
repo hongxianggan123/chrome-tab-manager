@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest"
 import { batchPlanTargetCount, createBatchActionPlan } from "./batch"
+import {
+  createDuplicatePromptCandidate,
+  getDuplicatePromptDefaultTarget,
+} from "./duplicate-prompt"
 import { getDuplicateCleanupTargets } from "./duplicate-cleanup"
 import { filterGroups } from "./filters"
 import { buildGroups } from "./grouping"
@@ -46,6 +50,19 @@ const snapshots: TabInstanceSnapshot[] = [
     lastAccessed: 150,
   },
 ]
+
+function tabSnapshot(overrides: Partial<TabInstanceSnapshot> = {}) {
+  return {
+    tabId: 99,
+    windowId: 10,
+    windowLabel: "W1",
+    originalUrl: "https://example.com/default",
+    title: "Default",
+    active: false,
+    index: 0,
+    ...overrides,
+  } satisfies TabInstanceSnapshot
+}
 
 function archivedRecord(overrides: Partial<ArchivedTabRecord> = {}) {
   return {
@@ -238,6 +255,103 @@ describe("duplicate cleanup selection", () => {
     const targets = getDuplicateCleanupTargets(visibleGroups)
 
     expect(targets).toEqual([])
+  })
+})
+
+describe("duplicate prompt selection", () => {
+  it("selects the most recently accessed existing duplicate and excludes the new tab", () => {
+    const existingOlder = tabSnapshot({
+      tabId: 1,
+      originalUrl: "https://example.com/a#old",
+      title: "Older",
+      lastAccessed: 100,
+    })
+    const existingRecent = tabSnapshot({
+      tabId: 2,
+      originalUrl: "https://example.com/a#recent",
+      title: "Recent",
+      lastAccessed: 300,
+    })
+    const newTab = tabSnapshot({
+      tabId: 3,
+      originalUrl: "https://example.com/a#new",
+      title: "New",
+      lastAccessed: 500,
+    })
+
+    const instances = toTabInstances([existingOlder, existingRecent, newTab])
+    const target = getDuplicatePromptDefaultTarget(instances, newTab.tabId)
+
+    expect(target?.tabId).toBe(2)
+  })
+
+  it("falls back to stable order when existing duplicates have no lastAccessed", () => {
+    const existingFirst = tabSnapshot({
+      tabId: 10,
+      windowId: 1,
+      index: 0,
+      originalUrl: "https://example.com/fallback",
+      lastAccessed: undefined,
+    })
+    const existingSecond = tabSnapshot({
+      tabId: 11,
+      windowId: 1,
+      index: 1,
+      originalUrl: "https://example.com/fallback",
+      lastAccessed: undefined,
+    })
+    const newTab = tabSnapshot({
+      tabId: 12,
+      windowId: 1,
+      index: 2,
+      originalUrl: "https://example.com/fallback",
+      lastAccessed: undefined,
+    })
+
+    const instances = toTabInstances([existingFirst, existingSecond, newTab])
+    const target = getDuplicatePromptDefaultTarget(instances, newTab.tabId)
+
+    expect(target?.tabId).toBe(10)
+  })
+
+  it("creates a prompt candidate only for a new ordinary duplicate tab", () => {
+    const existing = tabSnapshot({
+      tabId: 20,
+      originalUrl: "https://example.com/ordinary",
+      lastAccessed: 100,
+    })
+    const newTab = tabSnapshot({
+      tabId: 21,
+      originalUrl: "https://example.com/ordinary#fragment",
+      lastAccessed: 200,
+    })
+    const instances = toTabInstances([existing, newTab])
+
+    const candidate = createDuplicatePromptCandidate(instances, newTab.tabId)
+
+    expect(candidate).toMatchObject({
+      newTabId: 21,
+      normalizedUrl: "https://example.com/ordinary",
+      defaultTargetTabId: 20,
+    })
+  })
+
+  it("does not create a prompt candidate for special URLs", () => {
+    const existing = tabSnapshot({
+      tabId: 30,
+      originalUrl: "chrome://extensions",
+    })
+    const newTab = tabSnapshot({
+      tabId: 31,
+      originalUrl: "chrome://extensions",
+    })
+
+    const candidate = createDuplicatePromptCandidate(
+      toTabInstances([existing, newTab]),
+      newTab.tabId
+    )
+
+    expect(candidate).toBeNull()
   })
 })
 
