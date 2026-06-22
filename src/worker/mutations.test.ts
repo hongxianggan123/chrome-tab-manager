@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import * as localStorage from "@/storage/local-storage"
-import { updateDuplicatePromptDisplayMode } from "./mutations"
+import {
+  handleDuplicatePromptPermissionRemoved,
+  updateDuplicatePromptDisplayMode,
+} from "./mutations"
 
 vi.mock("@/storage/local-storage", () => ({
   deleteArchivedRecord: vi.fn(),
@@ -72,5 +75,23 @@ describe("worker mutations", () => {
         message: "页面浮层需要授权。已继续使用侧边栏提示。",
       },
     })
+  })
+
+  it("switches back to side panel when overlay permission is removed", async () => {
+    vi.mocked(localStorage.readStorageRoot).mockResolvedValue({
+      version: 1,
+      archivedTabs: {},
+      groupViewState: {},
+      duplicatePromptSettings: {
+        displayMode: "pageOverlay",
+        updatedAt: "2026-06-23T00:00:00.000Z",
+      },
+    })
+
+    await handleDuplicatePromptPermissionRemoved()
+
+    expect(localStorage.updateDuplicatePromptSettings).toHaveBeenCalledWith(
+      "sidePanel"
+    )
   })
 })

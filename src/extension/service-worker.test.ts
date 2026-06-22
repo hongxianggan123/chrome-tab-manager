@@ -19,6 +19,7 @@ const listeners = {
   windowRemoved: [] as Listener[],
   windowFocusChanged: [] as Listener[],
   storageChanged: [] as Listener[],
+  permissionsRemoved: [] as Listener<[chrome.permissions.Permissions]>[],
 }
 
 const state: DomainStatePayload = {
@@ -55,6 +56,7 @@ vi.mock("@/worker/mutations", () => ({
   restoreArchive: vi.fn(),
   updateDuplicatePromptDisplayMode: vi.fn(),
   updateGroupCollapsed: vi.fn(),
+  handleDuplicatePromptPermissionRemoved: vi.fn(),
 }))
 
 vi.mock("@/worker/duplicate-prompt", () => ({
@@ -124,6 +126,18 @@ describe("service worker push refresh", () => {
       "pageOverlay"
     )
   })
+
+  it("falls back to side panel when page overlay permission is removed", async () => {
+    const serviceWorker = await import("./service-worker")
+    const mutations = await import("@/worker/mutations")
+
+    await serviceWorker.handlePermissionsRemovedForTest({
+      origins: ["<all_urls>"],
+      permissions: [],
+    })
+
+    expect(mutations.handleDuplicatePromptPermissionRemoved).toHaveBeenCalled()
+  })
 })
 
 function createChromeMock() {
@@ -156,6 +170,9 @@ function createChromeMock() {
     },
     storage: {
       onChanged: event(listeners.storageChanged),
+    },
+    permissions: {
+      onRemoved: event(listeners.permissionsRemoved),
     },
   } as unknown as typeof chrome
 }

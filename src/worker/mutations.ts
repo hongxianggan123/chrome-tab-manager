@@ -290,6 +290,15 @@ export async function updateDuplicatePromptDisplayMode(
   }
 }
 
+export async function handleDuplicatePromptPermissionRemoved(): Promise<void> {
+  const root = await readStorageRoot()
+  if (root.duplicatePromptSettings.displayMode !== "pageOverlay") {
+    return
+  }
+
+  await updateDuplicatePromptSettings("sidePanel")
+}
+
 function failure(code: WorkerError["code"], message: string): MutationResult {
   return {
     ok: false,

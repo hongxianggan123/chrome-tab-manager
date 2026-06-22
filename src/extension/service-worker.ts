@@ -18,6 +18,7 @@ import {
   closeTabs,
   deleteArchive,
   deleteArchives,
+  handleDuplicatePromptPermissionRemoved,
   jumpToTab,
   restoreArchive,
   updateDuplicatePromptDisplayMode,
@@ -85,6 +86,9 @@ chrome.windows.onCreated.addListener(markDirty)
 chrome.windows.onRemoved.addListener(markDirty)
 chrome.windows.onFocusChanged.addListener(markDirty)
 chrome.storage.onChanged.addListener(markDirty)
+chrome.permissions.onRemoved.addListener((permissions) => {
+  void handlePermissionsRemoved(permissions)
+})
 
 async function handleMessage(message: WorkerRequest): Promise<WorkerResponse> {
   runtimeDirty = false
@@ -137,6 +141,16 @@ export function isRuntimeDirtyForTest() {
 }
 
 export const handleWorkerMessageForTest = handleMessage
+export const handlePermissionsRemovedForTest = handlePermissionsRemoved
+
+async function handlePermissionsRemoved(
+  permissions: chrome.permissions.Permissions
+) {
+  if (permissions.origins?.includes("<all_urls>")) {
+    await handleDuplicatePromptPermissionRemoved()
+    markDirty()
+  }
+}
 
 function schedulePushRefresh() {
   if (sidePanelPorts.size === 0) {
