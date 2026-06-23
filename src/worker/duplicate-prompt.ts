@@ -5,6 +5,7 @@ import {
   markDuplicatePromptHandled,
   readDuplicatePromptSession,
   writeDuplicatePrompt,
+  writeDuplicatePromptFocus,
 } from "@/storage/session-storage"
 import { buildDomainState } from "./refresh"
 
@@ -94,10 +95,46 @@ export async function jumpToDuplicatePromptTarget({
   await clearDuplicatePromptBadge()
 }
 
-export async function viewDuplicatePromptInstances(promptTabId: number) {
+export async function viewDuplicatePromptInstances({
+  promptTabId,
+  normalizedUrl,
+  windowId,
+}: {
+  promptTabId: number
+  normalizedUrl: string
+  windowId?: number
+}) {
+  await openDuplicatePromptSidePanel(promptTabId, windowId)
+
+  await writeDuplicatePromptFocus({
+    promptTabId,
+    normalizedUrl,
+    createdAt: new Date().toISOString(),
+  })
+
   await markDuplicatePromptHandled(promptTabId)
   await clearDuplicatePromptSession()
   await clearDuplicatePromptBadge()
+}
+
+async function openDuplicatePromptSidePanel(
+  promptTabId: number,
+  windowId?: number
+) {
+  try {
+    let targetWindowId = windowId
+    if (typeof targetWindowId !== "number") {
+      const tab = await chrome.tabs.get(promptTabId)
+      targetWindowId = tab.windowId
+    }
+
+    if (typeof targetWindowId === "number") {
+      await chrome.sidePanel.open({ windowId: targetWindowId })
+    }
+  } catch {
+    // If Chrome does not preserve the user gesture, the side panel can still
+    // consume the focus request when opened through the extension action.
+  }
 }
 
 async function tryShowPageOverlay(prompt: DuplicatePromptRuntime) {

@@ -1,5 +1,6 @@
 import type {
   DuplicatePromptDisplayMode,
+  DuplicatePromptFocusRequest,
   DuplicatePromptRuntime,
   DuplicatePromptSettings,
   GroupRuntime,
@@ -12,6 +13,7 @@ export type DomainStatePayload = {
   groups: GroupRuntime[]
   counts: InventoryCounts
   duplicatePrompt?: DuplicatePromptRuntime
+  duplicatePromptFocus?: DuplicatePromptFocusRequest
   duplicatePromptSettings: DuplicatePromptSettings
   feedback?: { kind: "error" | "success"; message: string }
 }
@@ -55,6 +57,7 @@ export type WorkerRequest =
       promptTabId: number
       normalizedUrl: string
     }
+  | { type: "duplicatePrompt:clearFocus" }
   | { type: "duplicatePrompt:dismiss"; promptTabId: number }
 
 export type WorkerResponse =

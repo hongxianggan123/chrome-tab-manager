@@ -235,6 +235,27 @@ export function App() {
   }, [])
 
   useEffect(() => {
+    const focus = state?.duplicatePromptFocus
+    if (!focus) {
+      return
+    }
+
+    setActiveView("list")
+    setQuery("")
+    setStatusFilter("duplicate")
+    setPendingDuplicateFocus({
+      promptTabId: focus.promptTabId,
+      normalizedUrl: focus.normalizedUrl,
+    })
+    void runCommand({ type: "duplicatePrompt:clearFocus" })
+  }, [
+    runCommand,
+    state?.duplicatePromptFocus?.createdAt,
+    state?.duplicatePromptFocus?.normalizedUrl,
+    state?.duplicatePromptFocus?.promptTabId,
+  ])
+
+  useEffect(() => {
     const prompt = state?.duplicatePrompt
     if (!prompt) {
       setPromptSecondsRemaining(30)

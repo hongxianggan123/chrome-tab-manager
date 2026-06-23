@@ -237,9 +237,26 @@ type DuplicatePromptViewDuplicatesMessage = {
 约束：
 
 - 清理当前重复提示。
-- 如果从页面浮层触发，先在用户手势链路中打开 side panel。
+- 如果从页面浮层触发，先在用户手势链路中打开 side panel，并把 `promptTabId` 与 `normalizedUrl` 写入一次性的 `duplicatePromptFocus`。
 - side panel 打开后切换到重复过滤，清空搜索，并优先定位 `promptTabId` 所在行；如果新重复标签页已不存在，则定位默认目标所在行。
 - 将 `promptTabId` 标记为当前会话内已处理，避免查看重复后同一标签实例再次弹出提示。
+
+### `duplicatePrompt:clearFocus`
+
+用途：side panel 消费 `duplicatePromptFocus` 后清理一次性视图意图。
+
+输入：
+
+```ts
+type DuplicatePromptClearFocusMessage = {
+  type: "duplicatePrompt:clearFocus"
+}
+```
+
+约束：
+
+- 只清理 `duplicatePromptFocus`。
+- 不改变当前标签清单、归档记录或已处理 tabId 集合。
 
 ### `duplicatePrompt:dismiss`
 
@@ -286,6 +303,11 @@ type DuplicatePromptSetDisplayModeMessage = {
 ```ts
 type DuplicatePromptSessionState = {
   duplicatePrompt?: DuplicatePromptRuntime
+  duplicatePromptFocus?: {
+    promptTabId: number
+    normalizedUrl: string
+    createdAt: string
+  }
   handledDuplicatePromptTabIds: number[]
 }
 ```
@@ -293,6 +315,7 @@ type DuplicatePromptSessionState = {
 规则：
 
 - `duplicatePrompt` 最多保存最近一条待处理重复提示。
+- `duplicatePromptFocus` 最多保存最近一条待消费侧边栏定位请求；side panel 消费后通过 `duplicatePrompt:clearFocus` 清理。
 - 新提示产生时覆盖旧提示。
 - `handledDuplicatePromptTabIds` 保存用户选择保留、查看重复、倒计时自动关闭等已处理 tabId。
 - service worker 重启后从 `chrome.storage.session` 恢复这些状态。

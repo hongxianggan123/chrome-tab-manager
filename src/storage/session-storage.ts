@@ -1,9 +1,13 @@
-import type { DuplicatePromptRuntime } from "@/domain/types"
+import type {
+  DuplicatePromptFocusRequest,
+  DuplicatePromptRuntime,
+} from "@/domain/types"
 
 export const DUPLICATE_PROMPT_SESSION_KEY = "tabManagerSession"
 
 export type DuplicatePromptSessionState = {
   duplicatePrompt?: DuplicatePromptRuntime
+  duplicatePromptFocus?: DuplicatePromptFocusRequest
   handledDuplicatePromptTabIds: number[]
 }
 
@@ -28,6 +32,19 @@ export async function writeDuplicatePrompt(
 export async function clearDuplicatePromptSession() {
   const current = await readDuplicatePromptSession()
   const { duplicatePrompt: _removed, ...next } = current
+  await writeDuplicatePromptSession(next)
+}
+
+export async function writeDuplicatePromptFocus(
+  duplicatePromptFocus: DuplicatePromptFocusRequest
+) {
+  const current = await readDuplicatePromptSession()
+  await writeDuplicatePromptSession({ ...current, duplicatePromptFocus })
+}
+
+export async function clearDuplicatePromptFocus() {
+  const current = await readDuplicatePromptSession()
+  const { duplicatePromptFocus: _removed, ...next } = current
   await writeDuplicatePromptSession(next)
 }
 
@@ -57,6 +74,7 @@ function normalizeDuplicatePromptSession(
   const candidate = value as Partial<DuplicatePromptSessionState>
   return {
     duplicatePrompt: candidate.duplicatePrompt,
+    duplicatePromptFocus: candidate.duplicatePromptFocus,
     handledDuplicatePromptTabIds: Array.isArray(
       candidate.handledDuplicatePromptTabIds
     )

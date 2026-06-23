@@ -3,9 +3,11 @@ import type { DuplicatePromptRuntime } from "@/domain/types"
 import {
   DUPLICATE_PROMPT_SESSION_KEY,
   clearDuplicatePromptSession,
+  clearDuplicatePromptFocus,
   markDuplicatePromptHandled,
   readDuplicatePromptSession,
   writeDuplicatePrompt,
+  writeDuplicatePromptFocus,
 } from "./session-storage"
 
 const store = new Map<string, unknown>()
@@ -68,5 +70,26 @@ describe("duplicate prompt session storage", () => {
 
     const stored = store.get(DUPLICATE_PROMPT_SESSION_KEY)
     expect(stored).toEqual({ handledDuplicatePromptTabIds: [7] })
+  })
+
+  it("writes and clears the duplicate focus request", async () => {
+    await writeDuplicatePromptFocus({
+      promptTabId: 7,
+      normalizedUrl: "https://example.com/a",
+      createdAt: "2026-06-23T00:00:00.000Z",
+    })
+
+    await expect(readDuplicatePromptSession()).resolves.toMatchObject({
+      duplicatePromptFocus: {
+        promptTabId: 7,
+        normalizedUrl: "https://example.com/a",
+      },
+    })
+
+    await clearDuplicatePromptFocus()
+
+    await expect(readDuplicatePromptSession()).resolves.toMatchObject({
+      duplicatePromptFocus: undefined,
+    })
   })
 })

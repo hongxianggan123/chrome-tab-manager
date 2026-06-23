@@ -63,6 +63,12 @@ vi.mock("@/worker/duplicate-prompt", () => ({
   dismissDuplicatePrompt: vi.fn(),
   handlePotentialDuplicatePrompt: vi.fn(),
   keepDuplicatePrompt: vi.fn(),
+  jumpToDuplicatePromptTarget: vi.fn(),
+  viewDuplicatePromptInstances: vi.fn(),
+}))
+
+vi.mock("@/storage/session-storage", () => ({
+  clearDuplicatePromptFocus: vi.fn(),
 }))
 
 describe("service worker push refresh", () => {
@@ -137,6 +143,38 @@ describe("service worker push refresh", () => {
     })
 
     expect(mutations.handleDuplicatePromptPermissionRemoved).toHaveBeenCalled()
+  })
+
+  it("clears consumed duplicate focus requests", async () => {
+    const serviceWorker = await import("./service-worker")
+    const session = await import("@/storage/session-storage")
+
+    await serviceWorker.handleWorkerMessageForTest({
+      type: "duplicatePrompt:clearFocus",
+    })
+
+    expect(session.clearDuplicatePromptFocus).toHaveBeenCalled()
+  })
+
+  it("passes sender window id when viewing duplicates from the page overlay", async () => {
+    const serviceWorker = await import("./service-worker")
+    const duplicatePrompt = await import("@/worker/duplicate-prompt")
+
+    await serviceWorker.handleWorkerMessageForTest(
+      {
+        type: "duplicatePrompt:viewDuplicates",
+        promptTabId: 7,
+        normalizedUrl: "https://example.com/a",
+      },
+      { tab: tabEvent({ id: 7, windowId: 4 }) }
+    )
+
+    expect(duplicatePrompt.viewDuplicatePromptInstances).toHaveBeenCalledWith({
+      type: "duplicatePrompt:viewDuplicates",
+      promptTabId: 7,
+      normalizedUrl: "https://example.com/a",
+      windowId: 4,
+    })
   })
 })
 

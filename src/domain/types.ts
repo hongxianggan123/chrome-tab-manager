@@ -43,6 +43,12 @@ export type DuplicatePromptRuntime = {
   displaySurface: "sidePanel" | "pageOverlay" | "pending"
 }
 
+export type DuplicatePromptFocusRequest = {
+  promptTabId: number
+  normalizedUrl: NormalizedUrl
+  createdAt: string
+}
+
 export type TabInstanceSnapshot = {
   tabId: number
   windowId: number

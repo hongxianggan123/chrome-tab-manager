@@ -1,4 +1,5 @@
 import { ensureStorageRoot } from "@/storage/local-storage"
+import { clearDuplicatePromptFocus } from "@/storage/session-storage"
 import type {
   WorkerPushMessage,
   WorkerRequest,
@@ -44,10 +45,10 @@ chrome.action.onClicked.addListener((tab) => {
 chrome.runtime.onMessage.addListener(
   (
     message: WorkerRequest,
-    _sender,
+    sender,
     sendResponse: (response: WorkerResponse) => void
   ) => {
-    void handleMessage(message).then(sendResponse)
+    void handleMessage(message, sender).then(sendResponse)
     return true
   }
 )
@@ -90,7 +91,10 @@ chrome.permissions.onRemoved.addListener((permissions) => {
   void handlePermissionsRemoved(permissions)
 })
 
-async function handleMessage(message: WorkerRequest): Promise<WorkerResponse> {
+async function handleMessage(
+  message: WorkerRequest,
+  sender?: chrome.runtime.MessageSender
+): Promise<WorkerResponse> {
   runtimeDirty = false
 
   switch (message.type) {
@@ -120,7 +124,14 @@ async function handleMessage(message: WorkerRequest): Promise<WorkerResponse> {
       await jumpToDuplicatePromptTarget(message)
       return { ok: true, state: await buildDomainState() }
     case "duplicatePrompt:viewDuplicates":
-      await viewDuplicatePromptInstances(message.promptTabId)
+      await viewDuplicatePromptInstances({
+        ...message,
+        windowId: sender?.tab?.windowId,
+      })
+      markDirty()
+      return { ok: true, state: await buildDomainState() }
+    case "duplicatePrompt:clearFocus":
+      await clearDuplicatePromptFocus()
       return { ok: true, state: await buildDomainState() }
     case "duplicatePrompt:keep":
       await keepDuplicatePrompt(message.promptTabId)

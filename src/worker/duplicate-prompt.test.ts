@@ -26,9 +26,13 @@ describe("worker duplicate prompt handling", () => {
         update: vi.fn(),
         remove: vi.fn(),
         sendMessage: vi.fn(),
+        get: vi.fn(),
       },
       windows: {
         update: vi.fn(),
+      },
+      sidePanel: {
+        open: vi.fn(),
       },
     } as unknown as typeof chrome
   })
@@ -142,6 +146,34 @@ describe("worker duplicate prompt handling", () => {
     })
     expect(chromeMock.tabs.update).toHaveBeenCalledWith(3, { active: true })
     expect(chromeMock.tabs.remove).toHaveBeenCalledWith(7)
+  })
+
+  it("view action opens the side panel and stores the duplicate focus request", async () => {
+    const chromeMock = globalThis.chrome as unknown as {
+      tabs: { get: ReturnType<typeof vi.fn> }
+      sidePanel: { open: ReturnType<typeof vi.fn> }
+    }
+    chromeMock.tabs.get.mockResolvedValue({ windowId: 2 })
+    const { viewDuplicatePromptInstances } = await import("./duplicate-prompt")
+
+    await viewDuplicatePromptInstances({
+      promptTabId: 7,
+      normalizedUrl: "https://example.com/a",
+    })
+
+    expect(chromeMock.sidePanel.open).toHaveBeenCalledWith({ windowId: 2 })
+    expect(
+      (
+        session as unknown as {
+          writeDuplicatePromptFocus: ReturnType<typeof vi.fn>
+        }
+      ).writeDuplicatePromptFocus
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        promptTabId: 7,
+        normalizedUrl: "https://example.com/a",
+      })
+    )
   })
 })
 

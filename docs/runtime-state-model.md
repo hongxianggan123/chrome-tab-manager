@@ -264,6 +264,12 @@ type DuplicatePromptRuntime = {
   createdAt: string
   displaySurface: "sidePanel" | "pageOverlay" | "pending"
 }
+
+type DuplicatePromptFocusRequest = {
+  promptTabId: number
+  normalizedUrl: NormalizedUrl
+  createdAt: string
+}
 ```
 
 规则：
@@ -271,6 +277,7 @@ type DuplicatePromptRuntime = {
 - 同一时间最多保留一条最近重复提示。
 - 运行时提示写入 `chrome.storage.session`，不跨浏览器重启持久化。
 - 页面浮层挂载状态不进入长期 storage。
+- 页面浮层点击 `查看重复` 时写入一次性的 `DuplicatePromptFocusRequest`；side panel 消费后清理，用于打开后切到重复过滤并定位相关行。
 - `displaySurface: "pending"` 表示侧边栏未打开且页面浮层不可用，只通过扩展图标轻提醒等待用户打开侧边栏。
 
 ### GroupRuntime

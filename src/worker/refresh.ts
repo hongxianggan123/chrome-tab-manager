@@ -25,6 +25,7 @@ export async function buildDomainState(): Promise<DomainStatePayload> {
     groups,
     counts: countItems(inventory),
     duplicatePrompt: duplicatePromptSession.duplicatePrompt,
+    duplicatePromptFocus: duplicatePromptSession.duplicatePromptFocus,
     duplicatePromptSettings: storageRoot.duplicatePromptSettings,
   }
 }

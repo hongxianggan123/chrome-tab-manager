@@ -156,10 +156,25 @@ function handleDemoMessage(message: WorkerRequest): DomainStatePayload {
 
   if (
     message.type === "duplicatePrompt:keep" ||
-    message.type === "duplicatePrompt:dismiss" ||
-    message.type === "duplicatePrompt:viewDuplicates"
+    message.type === "duplicatePrompt:dismiss"
   ) {
     demoState = { ...demoState, duplicatePrompt: undefined }
+  }
+
+  if (message.type === "duplicatePrompt:viewDuplicates") {
+    demoState = {
+      ...demoState,
+      duplicatePrompt: undefined,
+      duplicatePromptFocus: {
+        promptTabId: message.promptTabId,
+        normalizedUrl: message.normalizedUrl,
+        createdAt: new Date().toISOString(),
+      },
+    }
+  }
+
+  if (message.type === "duplicatePrompt:clearFocus") {
+    demoState = { ...demoState, duplicatePromptFocus: undefined }
   }
 
   return structuredClone(demoState)
