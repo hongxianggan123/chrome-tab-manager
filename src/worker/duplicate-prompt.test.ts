@@ -175,6 +175,31 @@ describe("worker duplicate prompt handling", () => {
       })
     )
   })
+
+  it("clears the prompt when the duplicate tab is closed outside prompt actions", async () => {
+    const { clearDuplicatePromptForClosedTab } = await import(
+      "./duplicate-prompt"
+    )
+    vi.mocked(session.readDuplicatePromptSession).mockResolvedValue({
+      duplicatePrompt: {
+        newTabId: 7,
+        normalizedUrl: "https://example.com/a",
+        originalUrl: "https://example.com/a#new",
+        title: "Example",
+        hostname: "example.com",
+        defaultTargetTabId: 3,
+        defaultTargetWindowId: 1,
+        createdAt: "2026-06-23T00:00:00.000Z",
+        displaySurface: "pending",
+      },
+      handledDuplicatePromptTabIds: [],
+    })
+
+    await clearDuplicatePromptForClosedTab(7)
+
+    expect(session.clearDuplicatePromptSession).toHaveBeenCalled()
+    expect(chrome.action.setBadgeText).toHaveBeenCalledWith({ text: "" })
+  })
 })
 
 function activeTab(overrides: Partial<TabInstance>): TabInstance {

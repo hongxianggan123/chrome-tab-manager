@@ -6,6 +6,7 @@ import type {
   WorkerResponse,
 } from "@/worker/messages"
 import {
+  clearDuplicatePromptForClosedTab,
   dismissDuplicatePrompt,
   handlePotentialDuplicatePrompt,
   jumpToDuplicatePromptTarget,
@@ -78,7 +79,10 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
     void handlePotentialDuplicatePrompt(tabId)
   }
 })
-chrome.tabs.onRemoved.addListener(markDirty)
+chrome.tabs.onRemoved.addListener((tabId) => {
+  markDirty()
+  void clearDuplicatePromptForClosedTab(tabId)
+})
 chrome.tabs.onActivated.addListener(markDirty)
 chrome.tabs.onAttached.addListener(markDirty)
 chrome.tabs.onDetached.addListener(markDirty)

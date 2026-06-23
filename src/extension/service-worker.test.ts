@@ -10,7 +10,7 @@ const listeners = {
   connect: [] as Listener<[chrome.runtime.Port]>[],
   tabCreated: [] as Listener<[chrome.tabs.Tab]>[],
   tabUpdated: [] as Listener<[number, chrome.tabs.TabChangeInfo]>[],
-  tabRemoved: [] as Listener[],
+  tabRemoved: [] as Listener<[number]>[],
   tabActivated: [] as Listener[],
   tabAttached: [] as Listener[],
   tabDetached: [] as Listener[],
@@ -60,6 +60,7 @@ vi.mock("@/worker/mutations", () => ({
 }))
 
 vi.mock("@/worker/duplicate-prompt", () => ({
+  clearDuplicatePromptForClosedTab: vi.fn(),
   dismissDuplicatePrompt: vi.fn(),
   handlePotentialDuplicatePrompt: vi.fn(),
   keepDuplicatePrompt: vi.fn(),
@@ -117,6 +118,17 @@ describe("service worker push refresh", () => {
       type: "state:changed",
       state,
     })
+  })
+
+  it("clears duplicate prompt state when a prompted tab closes", async () => {
+    await import("./service-worker")
+    const duplicatePrompt = await import("@/worker/duplicate-prompt")
+
+    listeners.tabRemoved[0](7)
+
+    expect(duplicatePrompt.clearDuplicatePromptForClosedTab).toHaveBeenCalledWith(
+      7
+    )
   })
 
   it("routes duplicate prompt settings updates", async () => {

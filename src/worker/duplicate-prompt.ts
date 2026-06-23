@@ -72,6 +72,21 @@ export async function dismissDuplicatePrompt(promptTabId: number) {
   await keepDuplicatePrompt(promptTabId)
 }
 
+export async function clearDuplicatePromptForClosedTab(tabId: number) {
+  const session = await readDuplicatePromptSession()
+  const prompt = session.duplicatePrompt
+
+  if (
+    !prompt ||
+    (prompt.newTabId !== tabId && prompt.defaultTargetTabId !== tabId)
+  ) {
+    return
+  }
+
+  await clearDuplicatePromptSession()
+  await clearDuplicatePromptBadge()
+}
+
 export async function jumpToDuplicatePromptTarget({
   promptTabId,
   targetTabId,

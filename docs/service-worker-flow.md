@@ -349,6 +349,8 @@ Chrome 事件不直接增量修改复杂 UI 状态。MVP 采用 snapshot refresh
 5. 重新派生 DomainState。
 6. 通知 side panel 更新。
 
+`chrome.tabs.onRemoved` 还需要额外检查被关闭的 tab 是否命中当前 `duplicatePrompt.newTabId` 或 `duplicatePrompt.defaultTargetTabId`。如果命中，service worker 立即清理当前重复提示和 action badge，避免 side panel 继续展示已经失效的提醒。
+
 理由：
 
 - Chrome tabs/windows 事件顺序可能复杂。
