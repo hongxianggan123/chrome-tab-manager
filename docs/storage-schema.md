@@ -1,6 +1,6 @@
 # Storage Schema
 
-本文档定义当前写入 `chrome.storage.local` 的数据结构。
+本文档定义当前写入 `chrome.storage.local` 的长期数据结构，以及 MVP 后置功能使用的 `chrome.storage.session` 会话状态边界。
 
 ## 原则
 
@@ -10,6 +10,7 @@
 - 不使用 `chrome.storage.sync`。
 - Chrome tab id 只作为运行时身份，不作为长期身份键。
 - 长期身份键使用规范化 URL。
+- 会话内提示状态使用 `chrome.storage.session`，不写入 `chrome.storage.local`。
 
 ## Namespace
 
@@ -20,6 +21,7 @@ type StorageRoot = {
   version: 1
   archivedTabs: Record<NormalizedUrl, ArchivedTabRecord>
   groupViewState: Record<GroupKey, GroupViewState>
+  duplicatePromptSettings?: DuplicatePromptSettings
 }
 ```
 
@@ -28,6 +30,7 @@ type StorageRoot = {
 - `version` 用于未来 schema migration。
 - `archivedTabs` 保存归档状态。
 - `groupViewState` 保存普通分组折叠状态。
+- `duplicatePromptSettings` 保存重复提示展示方式；MVP 之后新增，旧 storage 缺失时使用默认值。
 
 ## 类型定义
 
@@ -92,6 +95,20 @@ type GroupViewState = {
 
 - `collapsed`：用户是否折叠该分组。
 - `updatedAt`：最后更新时间，便于未来清理无效分组状态。
+
+### DuplicatePromptSettings
+
+```ts
+type DuplicatePromptSettings = {
+  displayMode: "sidePanel" | "pageOverlay"
+  updatedAt: string
+}
+```
+
+字段说明：
+
+- `displayMode`：重复提示展示方式。默认是 `sidePanel`；`pageOverlay` 只有在用户开启并完成页面注入授权后才实际展示页面浮层。
+- `updatedAt`：最后更新时间，便于未来排查设置迁移。
 
 ## GroupKey
 
@@ -161,6 +178,54 @@ host:extension
 
 搜索或过滤导致的临时展开不写入 storage。
 
+### 重复提示展示方式
+
+用户切换重复提示展示方式时：
+
+1. 写入 `duplicatePromptSettings.displayMode`。
+2. 更新 `updatedAt`。
+3. 页面浮层所需的可选页面授权由 Chrome 权限系统管理，不复制保存到 storage。
+
+如果用户选择页面浮层但授权被拒绝或当前页面不可注入，运行时降级为侧边栏待处理提示，不改写用户的展示方式偏好。如果用户之后关闭或撤销页面浮层授权，扩展把 `displayMode` 自动切回 `sidePanel`，并显示一次非阻塞提示。
+
+## Session State
+
+MVP 后置重复提示使用 `chrome.storage.session` 保存当前浏览器会话内的临时提示状态：
+
+```ts
+type SessionState = {
+  duplicatePrompt?: DuplicatePromptSessionState
+  duplicatePromptFocus?: DuplicatePromptFocusRequest
+  handledDuplicatePromptTabIds?: number[]
+}
+
+type DuplicatePromptSessionState = {
+  newTabId: number
+  normalizedUrl: NormalizedUrl
+  originalUrl: OriginalUrl
+  title: string
+  hostname: Hostname
+  defaultTargetTabId: number
+  defaultTargetWindowId: number
+  createdAt: string
+  displaySurface: "sidePanel" | "pageOverlay" | "pending"
+}
+
+type DuplicatePromptFocusRequest = {
+  promptTabId: number
+  normalizedUrl: NormalizedUrl
+  createdAt: string
+}
+```
+
+说明：
+
+- `duplicatePrompt` 最多保存最近一条待处理重复提示。
+- `duplicatePromptFocus` 是一次性侧边栏视图意图，用于页面浮层点击 `查看重复` 后，让侧边栏打开时清空搜索、切换到重复过滤并定位触发标签行；侧边栏消费后立即清理。
+- `handledDuplicatePromptTabIds` 保存当前会话内已处理或自动关闭的重复提示 tabId，避免 service worker 挂起恢复后对同一个标签实例重复提示。
+- `chrome.storage.session` 随浏览器会话结束而清理，不跨浏览器重启保存。
+- 这些字段不进入 `chrome.storage.local`，也不参与长期数据导出或隐私承诺中的长期保存范围。
+
 ## 不持久化的数据
 
 MVP 不持久化：
@@ -169,7 +234,8 @@ MVP 不持久化：
 - 当前状态过滤。
 - loading/error 状态。
 - toast 或非阻塞错误提示。
-- 待处理重复提示。
+- 待处理重复提示的长期记录。
+- 页面浮层运行时挂载状态。
 - 当前打开标签实例列表。
 - Chrome tab id 到标签记录的长期映射。
 - favicon 图片内容。

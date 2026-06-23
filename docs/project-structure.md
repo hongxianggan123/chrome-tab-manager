@@ -45,7 +45,10 @@ chrome-tab-manager/
 │   │   ├── App.tsx
 │   │   ├── components/
 │   │   ├── hooks/
+│   │   ├── settings/
 │   │   └── styles.css
+│   ├── content-script/
+│   │   └── duplicate-prompt-overlay.ts
 │   ├── domain/
 │   │   ├── normalize-url.ts
 │   │   ├── special-url.ts
@@ -74,6 +77,8 @@ chrome-tab-manager/
 
 - `src/components/ui/` 由 shadcn/ui CLI 管理。
 - 产品自定义组件放在 `src/side-panel/components/`，不要混入 shadcn 原始组件目录。
+- 侧边栏设置相关组件和配置表单放在 `src/side-panel/settings/`，避免 `App.tsx` 承载后续配置复杂度。
+- 页面浮层相关代码放在 `src/content-script/`，通过 `chrome.scripting` 按需动态注入，只负责挂载重复提示浮层和发送用户动作，不读取网页内容。
 - 可测试纯逻辑放在 `src/domain/`、`src/storage/`、`src/worker/`。
 
 ## 目录职责
@@ -312,6 +317,5 @@ MVP 不做：
 - 多包 workspace。
 - 单独设计系统包。
 - 后端服务目录。
-- content script 目录。
 - options page 目录。
 - popup page 目录。

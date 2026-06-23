@@ -59,6 +59,33 @@ function handleDemoMessage(message: WorkerRequest): DomainStatePayload {
     }
   }
 
+  if (message.type === "duplicatePrompt:jump") {
+    demoState = {
+      ...demoState,
+      groups: demoState.groups.map((group) => ({
+        ...group,
+        items: group.items.map((item) => {
+          if (item.kind !== "active") {
+            return item
+          }
+
+          const isActiveTab = item.tabId === message.targetTabId
+          return {
+            ...item,
+            active: isActiveTab,
+            lastAccessed: isActiveTab ? Date.now() : item.lastAccessed,
+          }
+        }),
+      })),
+    }
+    applyDemoItemMutation((items) =>
+      items.filter(
+        (item) => item.kind !== "active" || item.tabId !== message.promptTabId
+      )
+    )
+    demoState = { ...demoState, duplicatePrompt: undefined }
+  }
+
   if (message.type === "tab:close") {
     applyDemoItemMutation((items) =>
       items.filter(
@@ -115,6 +142,39 @@ function handleDemoMessage(message: WorkerRequest): DomainStatePayload {
           item.kind !== "archived" || !normalizedUrls.has(item.normalizedUrl)
       )
     )
+  }
+
+  if (message.type === "duplicatePrompt:setDisplayMode") {
+    demoState = {
+      ...demoState,
+      duplicatePromptSettings: {
+        displayMode: message.displayMode,
+        updatedAt: new Date().toISOString(),
+      },
+    }
+  }
+
+  if (
+    message.type === "duplicatePrompt:keep" ||
+    message.type === "duplicatePrompt:dismiss"
+  ) {
+    demoState = { ...demoState, duplicatePrompt: undefined }
+  }
+
+  if (message.type === "duplicatePrompt:viewDuplicates") {
+    demoState = {
+      ...demoState,
+      duplicatePrompt: undefined,
+      duplicatePromptFocus: {
+        promptTabId: message.promptTabId,
+        normalizedUrl: message.normalizedUrl,
+        createdAt: new Date().toISOString(),
+      },
+    }
+  }
+
+  if (message.type === "duplicatePrompt:clearFocus") {
+    demoState = { ...demoState, duplicatePromptFocus: undefined }
   }
 
   return structuredClone(demoState)
@@ -194,6 +254,21 @@ function demoArchiveItem(
 function createDemoState(): DomainStatePayload {
   return {
     generatedAt: new Date().toISOString(),
+    duplicatePromptSettings: {
+      displayMode: "sidePanel",
+      updatedAt: new Date().toISOString(),
+    },
+    duplicatePrompt: {
+      newTabId: 102,
+      normalizedUrl: "https://docs.google.com/document/d/roadmap?tab=t",
+      originalUrl: "https://docs.google.com/document/d/roadmap?tab=t#comments",
+      title: "Quarterly roadmap",
+      hostname: "docs.google.com",
+      defaultTargetTabId: 101,
+      defaultTargetWindowId: 1,
+      createdAt: new Date().toISOString(),
+      displaySurface: "sidePanel",
+    },
     counts: {
       total: 5,
       active: 4,

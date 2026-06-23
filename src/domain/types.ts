@@ -24,6 +24,31 @@ export type GroupViewState = {
   updatedAt: string
 }
 
+export type DuplicatePromptDisplayMode = "sidePanel" | "pageOverlay"
+
+export type DuplicatePromptSettings = {
+  displayMode: DuplicatePromptDisplayMode
+  updatedAt: string
+}
+
+export type DuplicatePromptRuntime = {
+  newTabId: number
+  normalizedUrl: NormalizedUrl
+  originalUrl: string
+  title: string
+  hostname: Hostname
+  defaultTargetTabId: number
+  defaultTargetWindowId: number
+  createdAt: string
+  displaySurface: "sidePanel" | "pageOverlay" | "pending"
+}
+
+export type DuplicatePromptFocusRequest = {
+  promptTabId: number
+  normalizedUrl: NormalizedUrl
+  createdAt: string
+}
+
 export type TabInstanceSnapshot = {
   tabId: number
   windowId: number

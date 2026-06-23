@@ -1,4 +1,8 @@
-import type { ArchivedTabRecord, GroupViewState } from "@/domain/types"
+import type {
+  ArchivedTabRecord,
+  DuplicatePromptDisplayMode,
+  GroupViewState,
+} from "@/domain/types"
 import {
   createDefaultStorageRoot,
   normalizeStorageRoot,
@@ -55,10 +59,22 @@ export async function setGroupCollapsed(
   })
 }
 
+export async function updateDuplicatePromptSettings(
+  displayMode: DuplicatePromptDisplayMode
+): Promise<void> {
+  const root = await readStorageRoot()
+  await writeStorageRoot({
+    ...root,
+    duplicatePromptSettings: {
+      displayMode,
+      updatedAt: new Date().toISOString(),
+    },
+  })
+}
+
 export async function ensureStorageRoot(): Promise<void> {
   const result = await chrome.storage.local.get(STORAGE_ROOT_KEY)
   if (!result[STORAGE_ROOT_KEY]) {
     await writeStorageRoot(createDefaultStorageRoot())
   }
 }
-

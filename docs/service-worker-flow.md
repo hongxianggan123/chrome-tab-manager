@@ -179,6 +179,149 @@ type SetGroupCollapsedMessage = {
 - 只保存用户手动操作。
 - 搜索或过滤造成的临时展开不发送该消息。
 
+### `duplicatePrompt:jump`
+
+用途：处理重复提示中的跳转动作。
+
+输入：
+
+```ts
+type DuplicatePromptJumpMessage = {
+  type: "duplicatePrompt:jump"
+  promptTabId: number
+  targetTabId: number
+  targetWindowId: number
+}
+```
+
+约束：
+
+- 先激活目标既有标签页并聚焦窗口。
+- 只关闭 `promptTabId` 对应的新重复标签页。
+- 操作完成后清理当前重复提示。
+- 如果 `promptTabId` 已不存在，只执行跳转和提示清理。
+
+### `duplicatePrompt:keep`
+
+用途：处理重复提示中的保留当前标签页动作。
+
+输入：
+
+```ts
+type DuplicatePromptKeepMessage = {
+  type: "duplicatePrompt:keep"
+  promptTabId: number
+}
+```
+
+约束：
+
+- 不关闭任何标签页。
+- 清理当前重复提示。
+- 将 `promptTabId` 标记为当前会话内已处理，后续 refresh 不再为同一标签实例反复提示。
+
+### `duplicatePrompt:viewDuplicates`
+
+用途：处理重复提示中的查看重复动作。
+
+输入：
+
+```ts
+type DuplicatePromptViewDuplicatesMessage = {
+  type: "duplicatePrompt:viewDuplicates"
+  promptTabId: number
+  normalizedUrl: string
+}
+```
+
+约束：
+
+- 清理当前重复提示。
+- 如果从页面浮层触发，先在用户手势链路中打开 side panel，并把 `promptTabId` 与 `normalizedUrl` 写入一次性的 `duplicatePromptFocus`。
+- side panel 打开后切换到重复过滤，清空搜索，并优先定位 `promptTabId` 所在行；如果新重复标签页已不存在，则定位默认目标所在行。
+- 将 `promptTabId` 标记为当前会话内已处理，避免查看重复后同一标签实例再次弹出提示。
+
+### `duplicatePrompt:clearFocus`
+
+用途：side panel 消费 `duplicatePromptFocus` 后清理一次性视图意图。
+
+输入：
+
+```ts
+type DuplicatePromptClearFocusMessage = {
+  type: "duplicatePrompt:clearFocus"
+}
+```
+
+约束：
+
+- 只清理 `duplicatePromptFocus`。
+- 不改变当前标签清单、归档记录或已处理 tabId 集合。
+
+### `duplicatePrompt:dismiss`
+
+用途：处理倒计时结束或用户关闭重复提示。
+
+输入：
+
+```ts
+type DuplicatePromptDismissMessage = {
+  type: "duplicatePrompt:dismiss"
+  promptTabId: number
+}
+```
+
+约束：
+
+- 不关闭任何标签页。
+- 清理当前重复提示。
+- 将 `promptTabId` 标记为当前会话内已处理。
+
+### `duplicatePrompt:setDisplayMode`
+
+用途：保存重复提示展示方式。
+
+输入：
+
+```ts
+type DuplicatePromptSetDisplayModeMessage = {
+  type: "duplicatePrompt:setDisplayMode"
+  displayMode: "sidePanel" | "pageOverlay"
+}
+```
+
+约束：
+
+- `sidePanel` 不需要页面注入授权。
+- `pageOverlay` 需要用户授权页面注入能力；授权失败时保留或回退到 `sidePanel`，并返回非阻塞错误，不影响侧边栏提示。
+- 如果检测到页面浮层授权被用户关闭或撤销，自动写回 `sidePanel`，并在下次 side panel 状态响应中带出一次非阻塞提示。
+
+## Session State
+
+重复提示会话状态使用 `chrome.storage.session`：
+
+```ts
+type DuplicatePromptSessionState = {
+  duplicatePrompt?: DuplicatePromptRuntime
+  duplicatePromptFocus?: {
+    promptTabId: number
+    normalizedUrl: string
+    createdAt: string
+  }
+  handledDuplicatePromptTabIds: number[]
+}
+```
+
+规则：
+
+- `duplicatePrompt` 最多保存最近一条待处理重复提示。
+- `duplicatePromptFocus` 最多保存最近一条待消费侧边栏定位请求；side panel 消费后通过 `duplicatePrompt:clearFocus` 清理。
+- 新提示产生时覆盖旧提示。
+- `handledDuplicatePromptTabIds` 保存用户选择保留、查看重复、倒计时自动关闭等已处理 tabId。
+- service worker 重启后从 `chrome.storage.session` 恢复这些状态。
+- 浏览器重启后这些状态允许丢失。
+- 不写入 `chrome.storage.local`。
+
 ## Chrome Events
 
 MVP 监听以下事件：
@@ -205,6 +348,8 @@ Chrome 事件不直接增量修改复杂 UI 状态。MVP 采用 snapshot refresh
 4. refresh 时重新读取 Chrome snapshot 和 storage snapshot。
 5. 重新派生 DomainState。
 6. 通知 side panel 更新。
+
+`chrome.tabs.onRemoved` 还需要额外检查被关闭的 tab 是否命中当前 `duplicatePrompt.newTabId` 或 `duplicatePrompt.defaultTargetTabId`。如果命中，service worker 立即清理当前重复提示和 action badge，避免 side panel 继续展示已经失效的提醒。
 
 理由：
 

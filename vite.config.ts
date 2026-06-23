@@ -17,7 +17,8 @@ function manifestPlugin(): Plugin {
             version: "0.0.0",
             description:
               "Manage open Chrome tabs from the side panel with duplicate detection and local archives.",
-            permissions: ["tabs", "storage", "sidePanel"],
+            permissions: ["tabs", "storage", "sidePanel", "scripting"],
+            optional_host_permissions: ["<all_urls>"],
             action: {
               default_title: "Chrome Tab Manager"
             },
@@ -45,7 +46,11 @@ export default defineConfig({
     rollupOptions: {
       input: {
         "side-panel": resolve(__dirname, "side-panel.html"),
-        "service-worker": resolve(__dirname, "src/extension/service-worker.ts")
+        "service-worker": resolve(__dirname, "src/extension/service-worker.ts"),
+        "duplicate-prompt-overlay": resolve(
+          __dirname,
+          "src/content-script/duplicate-prompt-overlay.ts"
+        )
       },
       output: {
         entryFileNames: "[name].js",

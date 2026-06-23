@@ -24,6 +24,7 @@ import type {
 import { sendWorkerMessage } from "./api"
 import { BatchActionBar } from "./components/BatchActionBar"
 import { DuplicateCleanupAction } from "./components/DuplicateCleanupAction"
+import { DuplicatePromptBanner } from "./components/DuplicatePromptBanner"
 import { GroupSection } from "./components/GroupSection"
 import { PanelHeader } from "./components/PanelHeader"
 import { SearchBox } from "./components/SearchBox"
@@ -34,6 +35,7 @@ import {
   LoadingRows,
 } from "./components/StateViews"
 import { createSidePanelPortSession } from "./runtime-port"
+import { SettingsPanel } from "./settings/SettingsPanel"
 import { StatusFilter as StatusFilterControl } from "./components/StatusFilter"
 
 export function App() {
@@ -42,6 +44,12 @@ export function App() {
   const [state, setState] = useState<DomainStatePayload | null>(null)
   const [query, setQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
+  const [activeView, setActiveView] = useState<"list" | "settings">("list")
+  const [promptSecondsRemaining, setPromptSecondsRemaining] = useState(30)
+  const [pendingDuplicateFocus, setPendingDuplicateFocus] = useState<{
+    promptTabId: number
+    normalizedUrl: string
+  } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<{
     kind: "error" | "success"
@@ -178,6 +186,30 @@ export function App() {
   }, [currentItemKey])
 
   useEffect(() => {
+    if (!pendingDuplicateFocus || statusFilter !== "duplicate") {
+      return
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      const listElement = groupListRef.current
+      const promptRow = listElement?.querySelector<HTMLElement>(
+        `[data-tab-id="${pendingDuplicateFocus.promptTabId}"]`
+      )
+      const fallbackRow = listElement?.querySelector<HTMLElement>(
+        `[data-normalized-url="${CSS.escape(pendingDuplicateFocus.normalizedUrl)}"]`
+      )
+
+      ;(promptRow ?? fallbackRow)?.scrollIntoView({
+        block: "center",
+        inline: "nearest",
+      })
+      setPendingDuplicateFocus(null)
+    })
+
+    return () => window.cancelAnimationFrame(frameId)
+  }, [pendingDuplicateFocus, state, statusFilter])
+
+  useEffect(() => {
     if (!feedback) {
       return
     }
@@ -200,6 +232,57 @@ export function App() {
       setFeedback({ kind: "error", message: getErrorMessage(caught) })
     }
   }, [])
+
+  useEffect(() => {
+    const focus = state?.duplicatePromptFocus
+    if (!focus) {
+      return
+    }
+
+    setActiveView("list")
+    setQuery("")
+    setStatusFilter("duplicate")
+    setPendingDuplicateFocus({
+      promptTabId: focus.promptTabId,
+      normalizedUrl: focus.normalizedUrl,
+    })
+    void runCommand({ type: "duplicatePrompt:clearFocus" })
+  }, [
+    runCommand,
+    state?.duplicatePromptFocus?.createdAt,
+    state?.duplicatePromptFocus?.normalizedUrl,
+    state?.duplicatePromptFocus?.promptTabId,
+  ])
+
+  useEffect(() => {
+    const prompt = state?.duplicatePrompt
+    if (!prompt) {
+      setPromptSecondsRemaining(30)
+      return
+    }
+
+    setPromptSecondsRemaining(30)
+    const startedAt = Date.now()
+    const intervalId = window.setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startedAt) / 1000)
+      const remaining = Math.max(0, 30 - elapsed)
+      setPromptSecondsRemaining(remaining)
+
+      if (remaining === 0) {
+        window.clearInterval(intervalId)
+        void runCommand({
+          type: "duplicatePrompt:dismiss",
+          promptTabId: prompt.newTabId,
+        })
+      }
+    }, 250)
+
+    return () => window.clearInterval(intervalId)
+  }, [
+    runCommand,
+    state?.duplicatePrompt?.createdAt,
+    state?.duplicatePrompt?.newTabId,
+  ])
 
   const runBatchCommand = useCallback(
     async (plan: BatchActionPlan) => {
@@ -259,97 +342,156 @@ export function App() {
       aria-busy={isPending}
     >
       <div className="flex shrink-0 flex-col gap-2 border-b border-border p-3">
-        <PanelHeader counts={state?.counts} />
-        <SearchBox value={query} onChange={setQuery} />
-        <StatusFilterControl
-          value={statusFilter}
-          counts={
-            viewState?.totalCounts ?? {
-              total: 0,
-              active: 0,
-              archived: 0,
-              duplicate: 0,
-            }
-          }
-          onChange={setStatusFilter}
+        <PanelHeader
+          counts={state?.counts}
+          onOpenSettings={() => setActiveView("settings")}
         />
-        <DuplicateCleanupAction
-          targetCount={duplicateCleanupTargets.length}
-          retainedCount={retainedDuplicateCount}
-          onSelect={handleSelectDuplicateCleanupTargets}
-        />
+        {activeView === "list" ? (
+          <>
+            <SearchBox value={query} onChange={setQuery} />
+            <StatusFilterControl
+              value={statusFilter}
+              counts={
+                viewState?.totalCounts ?? {
+                  total: 0,
+                  active: 0,
+                  archived: 0,
+                  duplicate: 0,
+                }
+              }
+              onChange={setStatusFilter}
+            />
+            <DuplicateCleanupAction
+              targetCount={duplicateCleanupTargets.length}
+              retainedCount={retainedDuplicateCount}
+              onSelect={handleSelectDuplicateCleanupTargets}
+            />
+          </>
+        ) : null}
       </div>
 
-      <section
-        ref={groupListRef}
-        className={cn(
-          "flex min-h-0 flex-1 flex-col overflow-y-auto",
-          getListBottomPadding(Boolean(selectedItems.length), Boolean(feedback))
-        )}
-        aria-label="标签清单"
-      >
-        {error ? <ErrorView message={error} /> : null}
-        {!state && !error ? <LoadingRows /> : null}
-        {viewState?.emptyReason ? <EmptyState reason={viewState.emptyReason} /> : null}
-        {viewState?.visibleGroups.map((group, groupIndex) => (
-          <GroupSection
-            key={group.key}
-            group={group}
-            accentIndex={groupIndex}
-            currentItemKey={currentItemKey}
-            selectedItemKeys={selectedItemKeys}
-            onCollapsedChange={(groupKey, collapsed) => {
-              if (query.trim() || statusFilter !== "all") {
-                return
-              }
+      {state?.duplicatePrompt && activeView === "list" ? (
+        <DuplicatePromptBanner
+          prompt={state.duplicatePrompt}
+          secondsRemaining={promptSecondsRemaining}
+          onJump={() => {
+            void runCommand({
+              type: "duplicatePrompt:jump",
+              promptTabId: state.duplicatePrompt!.newTabId,
+              targetTabId: state.duplicatePrompt!.defaultTargetTabId,
+              targetWindowId: state.duplicatePrompt!.defaultTargetWindowId,
+            })
+          }}
+          onKeep={() => {
+            void runCommand({
+              type: "duplicatePrompt:keep",
+              promptTabId: state.duplicatePrompt!.newTabId,
+            })
+          }}
+          onViewDuplicates={() => {
+            setQuery("")
+            setStatusFilter("duplicate")
+            setPendingDuplicateFocus({
+              promptTabId: state.duplicatePrompt!.newTabId,
+              normalizedUrl: state.duplicatePrompt!.normalizedUrl,
+            })
+            void runCommand({
+              type: "duplicatePrompt:viewDuplicates",
+              promptTabId: state.duplicatePrompt!.newTabId,
+              normalizedUrl: state.duplicatePrompt!.normalizedUrl,
+            })
+          }}
+        />
+      ) : null}
 
-              void runCommand({
-                type: "group:setCollapsed",
-                groupKey,
-                collapsed,
-              })
-            }}
-            onSelectGroupItems={(items, selected) => {
-              setSelectedItemKeys((current) => {
-                const next = new Set(current)
-                for (const item of items) {
+      {activeView === "settings" && state ? (
+        <SettingsPanel
+          displayMode={state.duplicatePromptSettings.displayMode}
+          onDisplayModeChange={(displayMode) => {
+            void runCommand({
+              type: "duplicatePrompt:setDisplayMode",
+              displayMode,
+            })
+          }}
+          onBack={() => setActiveView("list")}
+        />
+      ) : (
+        <section
+          ref={groupListRef}
+          className={cn(
+            "flex min-h-0 flex-1 flex-col overflow-y-auto",
+            getListBottomPadding(
+              Boolean(selectedItems.length),
+              Boolean(feedback)
+            )
+          )}
+          aria-label="标签清单"
+        >
+          {error ? <ErrorView message={error} /> : null}
+          {!state && !error ? <LoadingRows /> : null}
+          {viewState?.emptyReason ? (
+            <EmptyState reason={viewState.emptyReason} />
+          ) : null}
+          {viewState?.visibleGroups.map((group, groupIndex) => (
+            <GroupSection
+              key={group.key}
+              group={group}
+              accentIndex={groupIndex}
+              currentItemKey={currentItemKey}
+              selectedItemKeys={selectedItemKeys}
+              onCollapsedChange={(groupKey, collapsed) => {
+                if (query.trim() || statusFilter !== "all") {
+                  return
+                }
+
+                void runCommand({
+                  type: "group:setCollapsed",
+                  groupKey,
+                  collapsed,
+                })
+              }}
+              onSelectGroupItems={(items, selected) => {
+                setSelectedItemKeys((current) => {
+                  const next = new Set(current)
+                  for (const item of items) {
+                    const key = inventoryItemKey(item)
+                    if (selected) {
+                      next.add(key)
+                    } else {
+                      next.delete(key)
+                    }
+                  }
+                  return next
+                })
+                setPendingBatchPlan(null)
+              }}
+              onSelectItem={(item, selected) => {
+                setSelectedItemKeys((current) => {
+                  const next = new Set(current)
                   const key = inventoryItemKey(item)
                   if (selected) {
                     next.add(key)
                   } else {
                     next.delete(key)
                   }
-                }
-                return next
-              })
-              setPendingBatchPlan(null)
-            }}
-            onSelectItem={(item, selected) => {
-              setSelectedItemKeys((current) => {
-                const next = new Set(current)
-                const key = inventoryItemKey(item)
-                if (selected) {
-                  next.add(key)
-                } else {
-                  next.delete(key)
-                }
-                return next
-              })
-              setPendingBatchPlan(null)
-            }}
-            onJump={handleJump}
-            onArchive={(tabId) => {
-              void runCommand({ type: "tab:archive", tabId })
-            }}
-            onClose={(tabId) => {
-              void runCommand({ type: "tab:close", tabId })
-            }}
-            onDeleteArchive={(normalizedUrl) => {
-              void runCommand({ type: "archive:delete", normalizedUrl })
-            }}
-          />
-        ))}
-      </section>
+                  return next
+                })
+                setPendingBatchPlan(null)
+              }}
+              onJump={handleJump}
+              onArchive={(tabId) => {
+                void runCommand({ type: "tab:archive", tabId })
+              }}
+              onClose={(tabId) => {
+                void runCommand({ type: "tab:close", tabId })
+              }}
+              onDeleteArchive={(normalizedUrl) => {
+                void runCommand({ type: "archive:delete", normalizedUrl })
+              }}
+            />
+          ))}
+        </section>
+      )}
 
       <div className="fixed inset-x-0 bottom-0 z-40 flex flex-col">
         <div className="px-3 pb-2 empty:hidden">
@@ -361,19 +503,21 @@ export function App() {
             />
           ) : null}
         </div>
-        <BatchActionBar
-          selectedItems={selectedItems}
-          pendingPlan={pendingBatchPlan}
-          onPrepareAction={setPendingBatchPlan}
-          onCancelAction={() => setPendingBatchPlan(null)}
-          onConfirmAction={(plan) => {
-            void runBatchCommand(plan)
-          }}
-          onClearSelection={() => {
-            setSelectedItemKeys(new Set())
-            setPendingBatchPlan(null)
-          }}
-        />
+        {activeView === "list" ? (
+          <BatchActionBar
+            selectedItems={selectedItems}
+            pendingPlan={pendingBatchPlan}
+            onPrepareAction={setPendingBatchPlan}
+            onCancelAction={() => setPendingBatchPlan(null)}
+            onConfirmAction={(plan) => {
+              void runBatchCommand(plan)
+            }}
+            onClearSelection={() => {
+              setSelectedItemKeys(new Set())
+              setPendingBatchPlan(null)
+            }}
+          />
+        ) : null}
       </div>
     </main>
   )

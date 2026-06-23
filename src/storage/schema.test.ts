@@ -7,6 +7,10 @@ describe("storage schema", () => {
       version: 1,
       archivedTabs: {},
       groupViewState: {},
+      duplicatePromptSettings: {
+        displayMode: "sidePanel",
+        updatedAt: "1970-01-01T00:00:00.000Z",
+      },
     })
   })
 
@@ -15,5 +19,20 @@ describe("storage schema", () => {
       createDefaultStorageRoot()
     )
   })
-})
 
+  it("defaults duplicate prompt settings to side panel", () => {
+    expect(createDefaultStorageRoot().duplicatePromptSettings.displayMode).toBe(
+      "sidePanel"
+    )
+  })
+
+  it("normalizes older roots without duplicate prompt settings", () => {
+    const root = normalizeStorageRoot({
+      version: 1,
+      archivedTabs: {},
+      groupViewState: {},
+    })
+
+    expect(root.duplicatePromptSettings.displayMode).toBe("sidePanel")
+  })
+})
