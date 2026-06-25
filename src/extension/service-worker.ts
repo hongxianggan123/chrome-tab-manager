@@ -49,7 +49,7 @@ chrome.runtime.onMessage.addListener(
     sender,
     sendResponse: (response: WorkerResponse) => void
   ) => {
-    void handleMessage(message, sender).then(sendResponse)
+    void respondToMessage(message, sender, sendResponse)
     return true
   }
 )
@@ -143,6 +143,24 @@ async function handleMessage(
     case "duplicatePrompt:dismiss":
       await dismissDuplicatePrompt(message.promptTabId)
       return { ok: true, state: await buildDomainState() }
+  }
+}
+
+async function respondToMessage(
+  message: WorkerRequest,
+  sender: chrome.runtime.MessageSender | undefined,
+  sendResponse: (response: WorkerResponse) => void
+) {
+  try {
+    sendResponse(await handleMessage(message, sender))
+  } catch {
+    sendResponse({
+      ok: false,
+      error: {
+        code: "tabs_unavailable",
+        message: "无法读取标签页。请重新打开侧边栏或刷新扩展后再试。",
+      },
+    })
   }
 }
 

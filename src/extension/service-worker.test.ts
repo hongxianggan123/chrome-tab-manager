@@ -1,12 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import type { DomainStatePayload } from "@/worker/messages"
+import type {
+  DomainStatePayload,
+  WorkerRequest,
+  WorkerResponse,
+} from "@/worker/messages"
 
 type Listener<T extends unknown[] = []> = (...args: T) => void
 
 const listeners = {
   actionClicked: [] as Listener<[chrome.tabs.Tab]>[],
   installed: [] as Listener[],
-  message: [] as Listener[],
+  message: [] as Listener<
+    [
+      WorkerRequest,
+      chrome.runtime.MessageSender | undefined,
+      (response: WorkerResponse) => void,
+    ]
+  >[],
   connect: [] as Listener<[chrome.runtime.Port]>[],
   tabCreated: [] as Listener<[chrome.tabs.Tab]>[],
   tabUpdated: [] as Listener<[number, chrome.tabs.TabChangeInfo]>[],
@@ -166,6 +176,27 @@ describe("service worker push refresh", () => {
     })
 
     expect(session.clearDuplicatePromptFocus).toHaveBeenCalled()
+  })
+
+  it("responds with a structured error when message handling fails", async () => {
+    await import("./service-worker")
+    const refresh = await import("@/worker/refresh")
+    vi.mocked(refresh.buildDomainState).mockRejectedValueOnce(
+      new Error("windows unavailable")
+    )
+    const sendResponse = vi.fn()
+
+    listeners.message[0]({ type: "state:get" }, undefined, sendResponse)
+
+    await vi.waitFor(() => {
+      expect(sendResponse).toHaveBeenCalledWith({
+        ok: false,
+        error: {
+          code: "tabs_unavailable",
+          message: "无法读取标签页。请重新打开侧边栏或刷新扩展后再试。",
+        },
+      })
+    })
   })
 
   it("passes sender window id when viewing duplicates from the page overlay", async () => {

@@ -2,6 +2,9 @@ import type { DomainStatePayload, WorkerRequest } from "@/worker/messages"
 import { countItems } from "@/domain/grouping"
 import type { InventoryItem } from "@/domain/types"
 
+const WORKER_CONNECTION_RETRY_DELAY_MS = 100
+const WORKER_CONNECTION_MAX_ATTEMPTS = 2
+
 export async function sendWorkerMessage(
   message: WorkerRequest
 ): Promise<DomainStatePayload> {
@@ -9,7 +12,7 @@ export async function sendWorkerMessage(
     return handleDemoMessage(message)
   }
 
-  const response = await chrome.runtime.sendMessage(message)
+  const response = await sendRuntimeMessage(message)
 
   if (!response?.ok) {
     throw new Error(response?.error?.message ?? "无法读取标签页。")
@@ -20,6 +23,45 @@ export async function sendWorkerMessage(
 
 function isChromeRuntimeAvailable() {
   return typeof chrome !== "undefined" && Boolean(chrome.runtime?.sendMessage)
+}
+
+async function sendRuntimeMessage(message: WorkerRequest) {
+  for (let attempt = 1; attempt <= WORKER_CONNECTION_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      return await chrome.runtime.sendMessage(message)
+    } catch (caught) {
+      if (
+        attempt >= WORKER_CONNECTION_MAX_ATTEMPTS ||
+        !isMissingReceiverError(caught)
+      ) {
+        throw normalizeRuntimeError(caught)
+      }
+
+      await wait(WORKER_CONNECTION_RETRY_DELAY_MS)
+    }
+  }
+}
+
+function isMissingReceiverError(caught: unknown) {
+  return getRuntimeErrorMessage(caught).includes(
+    "Receiving end does not exist"
+  )
+}
+
+function normalizeRuntimeError(caught: unknown) {
+  if (isMissingReceiverError(caught)) {
+    return new Error("无法连接扩展后台。请重新打开侧边栏或刷新扩展后再试。")
+  }
+
+  return caught instanceof Error ? caught : new Error("无法读取标签页。")
+}
+
+function getRuntimeErrorMessage(caught: unknown) {
+  return caught instanceof Error ? caught.message : String(caught)
+}
+
+function wait(ms: number) {
+  return new Promise((resolve) => globalThis.setTimeout(resolve, ms))
 }
 
 let demoState: DomainStatePayload | null = null
